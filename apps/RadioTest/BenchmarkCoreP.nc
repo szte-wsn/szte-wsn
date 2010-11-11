@@ -29,7 +29,6 @@ module BenchmarkCoreP @safe() {
     
     interface Packet;
     interface PacketAcknowledgements as Ack;
-    interface AMPacket;
     
     interface LowPowerListening;
     interface Leds;
@@ -61,7 +60,6 @@ implementation {
   stat_t  stats[MAX_EDGE_COUNT];
   
   message_t   pkt;
-  testmsg_t*  t_msg;
   edge_t*     problem;
 
   // Bitmask specifying edges with pending send requests
@@ -85,8 +83,6 @@ implementation {
     // Clear stats and configuration values
     memset(stats,0,sizeof(stat_t)*MAX_EDGE_COUNT);
     memset(&_config,0,sizeof(setup_t));
-    
-    t_msg = (testmsg_t*)(call Packet.getPayload(&pkt,sizeof(testmsg_t)));
     
     pending = 0x0;
     eidx = 0xFF;
@@ -135,10 +131,10 @@ implementation {
   }
   
   /** REQUEST BECHMARK RESULTS **/
-  command stat_t* BenchmarkCore.getStat(uint16_t index) { 
-    _ASSERT_( index < MAX_EDGE_COUNT )
+  command stat_t* BenchmarkCore.getStat(uint16_t idx) { 
+    _ASSERT_( idx < MAX_EDGE_COUNT )
     _ASSERT_( _state == STATE_FINISHED )
-    return stats + index;
+    return stats + idx;
   }
   
   command uint16_t BenchmarkCore.getDebug() {
@@ -163,6 +159,8 @@ implementation {
     
     // Get clean variables and save the configuration
     cleanstate();
+    _ASSERT_ ( call Ack.noAck(&pkt) == SUCCESS )
+    
     _config = config;
     
     // Setup the problem and initialize the edges
@@ -337,7 +335,7 @@ implementation {
         ++(stat->sendDoneSuccessCount);
 
         // If ACK is not requested
-        if ( !(edge->policy.need_ack) && !(_config.flags & GLOBAL_USE_ACK) ) {
+        if ( edge->policy.need_ack == 0 && (_config.flags & GLOBAL_USE_ACK) == 0 ) {
           ++(edge->nextmsgid);
 
         // If ACK is requested and received
@@ -400,6 +398,7 @@ implementation {
     pending_t   pidx;
     am_addr_t   address;
     uint8_t     oldlock;
+    testmsg_t*  t_msg;
     
     // In case we have any chance to send    
     if ( _state == STATE_RUNNING && pending ) {
@@ -424,6 +423,8 @@ implementation {
       _ASSERT_( problem[eidx].sender == TOS_NODE_ID )
         
       // Compose the new message
+      call Packet.clear(&pkt);
+      t_msg = (testmsg_t*)(call Packet.getPayload(&pkt,sizeof(testmsg_t)));
       t_msg->edgeid = eidx;
       t_msg->msgid = problem[eidx].nextmsgid;
       
@@ -431,14 +432,11 @@ implementation {
       address = ( _config.flags & GLOBAL_USE_BCAST ) ? AM_BROADCAST_ADDR : problem[eidx].receiver;
       
       // Find out whether we need to use ACK
-  /*    if ( (_config.flags & GLOBAL_USE_ACK) || problem[eidx].policy.need_ack )
+      if ( (_config.flags & GLOBAL_USE_ACK) || problem[eidx].policy.need_ack == 1 ) {
         call Ack.requestAck(&pkt);
-      else
+      } else {
         call Ack.noAck(&pkt);
-        
-    */
-      call Ack.noAck(&pkt);
-    
+      }
       // Send out
       switch ( call TxTest.send( address, &pkt, sizeof(testmsg_t)) ) {
         case SUCCESS :
