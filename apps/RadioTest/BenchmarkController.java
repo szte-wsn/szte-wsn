@@ -40,7 +40,7 @@ import net.tinyos.message.*;
 import net.tinyos.util.*;
 import org.apache.commons.cli.*;
 
-public class RadioBController implements MessageListener {
+public class BenchmarkController implements MessageListener {
 	
 	private MoteIF mif;
   private short stage, pidx;
@@ -63,11 +63,11 @@ public class RadioBController implements MessageListener {
   // Conformance to the NesC code
   // refer to RadioTestCases.h
   public static final short PROBLEMSET_COUNT = 13;
-  private static short[] trproblem = new short[] { 0,0,0,1,0,0,0,0,0,0,0,1,1,1 };
-  private static short[] motecount = new short[] { 2,2,2,3,2,2,3,3,2,3,3,4,5,2 };
-  private static short[] edgecount = new short[] { 1,1,1,6,1,2,3,6,2,3,6,3,6,1 };
+  private static short[] trproblem = new short[] { 0,0,0,0,0,0,0,0,0,0,0,1,1,1 };
+  private static short[] motecount = new short[] { 2,2,2,2,2,2,2,3,2,3,3,4,5,2 };
+  private static short[] edgecount = new short[] { 1,1,1,1,1,1,1,6,2,3,6,3,6,1 };
 
-	public RadioBController(final short p)
+	public BenchmarkController(final short p)
 	{
 		mif = new MoteIF();
     mif.registerListener(new SyncMsgT(),this);
