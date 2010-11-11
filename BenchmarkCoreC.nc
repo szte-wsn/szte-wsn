@@ -20,7 +20,6 @@ implementation {
   
   components ActiveMessageC;
   Core.LowPowerListening -> ActiveMessageC; 
-  Core.AMPacket -> ActiveMessageC;
   Core.Packet -> ActiveMessageC;
   Core.Ack -> ActiveMessageC;
   

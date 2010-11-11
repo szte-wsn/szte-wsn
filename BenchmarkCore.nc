@@ -6,7 +6,7 @@ interface BenchmarkCore {
    * Requests a statistics indexed by 'index'
    * @return the stat
    */
-  command stat_t* getStat(uint16_t index);
+  command stat_t* getStat(uint16_t idx);
   
   /**
    * Requests the debug information
