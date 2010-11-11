@@ -36,7 +36,7 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
-#define MAX_EDGE_COUNT  16
+#define MAX_EDGE_COUNT  1
 #define MAX_NODE_COUNT  10
 #define MAX_TIMER_COUNT 4
 
@@ -71,9 +71,9 @@ typedef pending_t edgeaddr_t;
 
 enum {
   // Policy flags
-  GLOBAL_USE_ACK           = 0x1,
-  GLOBAL_USE_BCAST         = 0x2,
-  GLOBAL_USE_LPL           = 0x4,
+  GLOBAL_USE_ACK           = 1<<0,
+  GLOBAL_USE_BCAST         = 1<<1,
+  GLOBAL_USE_LPL           = 1<<2,
 };
 
 typedef struct flag_t {
