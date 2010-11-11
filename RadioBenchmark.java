@@ -53,7 +53,7 @@ public class RadioBenchmark {
 
       Option problem = OptionBuilder.withArgName( "number" )
                                 .hasArg()
-                                .withDescription( "The network problem to be used [0-" + (RadioBController.PROBLEMSET_COUNT-1) + "]." )
+                                .withDescription( "The network problem to be used [0-" + (BenchmarkController.PROBLEMSET_COUNT-1) + "]." )
                                 .withLongOpt("problem")
                                 .create( "p" );
 
@@ -105,7 +105,7 @@ public class RadioBenchmark {
 
       } else if ( cl.hasOption('p') ) {
         short problemidx = (short)Integer.parseInt(cl.getOptionValue('p'));
-        if ( problemidx >= RadioBController.PROBLEMSET_COUNT || problemidx < 0 )
+        if ( problemidx >= BenchmarkController.PROBLEMSET_COUNT || problemidx < 0 )
           throw new MissingOptionException("Invalid problem specified!");
   
         int runtimemsec = cl.hasOption('t') 
@@ -154,7 +154,7 @@ public class RadioBenchmark {
         
         st.set_timer_freq(new long[] {0,0,0,0});
 
-        RadioBController rtc = new RadioBController(problemidx);
+        BenchmarkController rtc = new BenchmarkController(problemidx);
         
         rtc.resetMotes();
         // Run the test
@@ -167,7 +167,7 @@ public class RadioBenchmark {
 
       // Only reset is requested
       } else if ( cl.hasOption('r') ) {
-        RadioBController rtc = new RadioBController((short)0);
+        BenchmarkController rtc = new BenchmarkController((short)0);
         rtc.resetMotes();
       } else {
         throw new MissingOptionException("Invalid arguments specified!");
