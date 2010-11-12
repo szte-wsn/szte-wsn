@@ -3,7 +3,7 @@
 #include "Internal.h"
 #include "Benchmarks.h"
 
-#define SET_STATE(s) atomic { call Leds.set(s); _state = s; }
+#define SET_STATE(s) atomic { call Leds.set(s); state = s; }
 
 #if defined(_DEBUG_MODE_)
   #define _ASSERT_(cond) if(!(cond || dbgLINE)){ dbgLINE = __LINE__; }
@@ -25,7 +25,7 @@ module BenchmarkCoreP @safe() {
     interface AMSend  as TxTest;
   
     interface Timer<TMilli> as TestTimer;
-//    interface Timer<TMilli> as TriggerTimer;
+    interface Timer<TMilli> as TriggerTimer[uint8_t id];
     
     interface Packet;
     interface PacketAcknowledgements as Ack;
@@ -51,17 +51,22 @@ implementation {
     
     // Sendlock states
     UNLOCKED          = 0,
-    LOCKED            = 1
-
+    LOCKED            = 1,
+    
   };
   
-  uint8_t _state, sendlock;
-  setup_t _config;  
-  stat_t  stats[MAX_EDGE_COUNT];
-  
-  message_t   pkt;
-  edge_t*     problem;
 
+  uint8_t     state, sendlock;
+  setup_t     config;
+  message_t   pkt;
+
+  edge_t*     problem;
+  
+  stat_t      stats[MAX_EDGE_COUNT];
+ 
+  pending_t   tickMask_start[MAX_TIMER_COUNT];
+  pending_t   tickMask_stop [MAX_TIMER_COUNT];
+   
   // Bitmask specifying edges with pending send requests
   pending_t pending;
   
@@ -77,30 +82,99 @@ implementation {
   /** CLEAN THE STATE MACHINE VARIABLES **/
   void cleanstate() {
    
+    SET_STATE( STATE_INVALID )
+   
     // Disassociate the problem    
     problem = (edge_t*)NULL;
     
-    // Clear stats and configuration values
+    // Clear configuration values
+    memset(&config,0,sizeof(setup_t));
     memset(stats,0,sizeof(stat_t)*MAX_EDGE_COUNT);
-    memset(&_config,0,sizeof(setup_t));
+    memset(tickMask_start,0,sizeof(pending_t)*MAX_TIMER_COUNT);
+    memset(tickMask_stop,0,sizeof(pending_t)*MAX_TIMER_COUNT);
     
     pending = 0x0;
     eidx = 0xFF;
+    sendlock = UNLOCKED;
       
     #ifdef _DEBUG_MODE_
     dbgLINE = 0;
     #endif
-      
-    sendlock = UNLOCKED;
+    
     SET_STATE( STATE_IDLE )
   }
   
+  void startTimers() {
+    uint8_t i;
+    for(i = 0; i< config.timer_count; ++i) {
+      uint32_t now = call TriggerTimer.getNow[0]();
+      if ( config.timers[i].isoneshot )
+        call TriggerTimer.startOneShotAt[i](
+          now + config.timers[i].delay,
+          config.timers[i].period_msec);
+      else
+        call TriggerTimer.startPeriodicAt[i](
+          now + config.timers[i].delay,
+          config.timers[i].period_msec);
+    }
+  }
+  
+  void stopTimers() {
+    uint8_t i;
+    for(i = 0; i< MAX_TIMER_COUNT; ++i) {
+      call TriggerTimer.stop[i]();
+    }
+  }
+    
+  /** INITIALIZE THE COMPONENT **/
+  command error_t Init.init() {
+    cleanstate();
+    return SUCCESS;
+  }
+  
+  /** REQUEST BECHMARK RESULTS **/
+  command stat_t* BenchmarkCore.getStat(uint16_t idx) { 
+    _ASSERT_( idx < MAX_EDGE_COUNT )
+    _ASSERT_( state == STATE_FINISHED )
+    return stats + idx;
+  }
+  
+  /** REQUEST DEBUG INFORMATION **/
+  command uint16_t BenchmarkCore.getDebug() {
+    #ifdef _DEBUG_MODE_
+    return dbgLINE;
+    #else
+    return 0;
+    #endif
+  }
+  
+  /** RESETS THE CORE **/
+  command void BenchmarkCore.reset() {
+    call TestTimer.stop();
+    stopTimers();
+    cleanstate();
+    signal BenchmarkCore.resetDone();
+  }
+  
+  /** START THE REAL BENCHMARK */
+  void startBenchmark() {
+    // If this node sends initial message(s)
+    if ( pending )
+      post sendPending();
+
+    // Start the trigger timers
+    startTimers();
+    
+    // Start the test timer      
+    call TestTimer.startOneShot(config.runtime_msec); 
+  }
+
   void postNewTrigger(pending_t sbitmask) {
     uint8_t i = 0;
     pending_t blogd;
     
     _ASSERT_( sbitmask > 0 )
-    _ASSERT_(_state == STATE_RUNNING || _state == STATE_IDLE )
+    _ASSERT_( state == STATE_RUNNING || state == STATE_IDLE )
     
     atomic {
       // Check which edges need to be backlogged
@@ -122,122 +196,93 @@ implementation {
           problem[i].policy.inf_loop_on = TRUE;
       }
     }
-    post sendPending();
   }
-  
-  command error_t Init.init() {
-    cleanstate();
-    return SUCCESS;
-  }
-  
-  /** REQUEST BECHMARK RESULTS **/
-  command stat_t* BenchmarkCore.getStat(uint16_t idx) { 
-    _ASSERT_( idx < MAX_EDGE_COUNT )
-    _ASSERT_( _state == STATE_FINISHED )
-    return stats + idx;
-  }
-  
-  command uint16_t BenchmarkCore.getDebug() {
-    #ifdef _DEBUG_MODE_
-    return dbgLINE;
-    #else
-    return 0;
-    #endif
-  }
+
   
   /** SETUP THE BENCHMARK **/
-  command void BenchmarkCore.setup(setup_t config) {
-    uint8_t   idx;
+  command void BenchmarkCore.setup(setup_t conf) {
+    uint8_t   idx, k;
     
-    _ASSERT_( _state == STATE_INVALID || _state == STATE_IDLE || _state == STATE_CONFIGURED )
-    _ASSERT_( config.problem_idx < PROBLEMSET_COUNT );
-    _ASSERT_( config.runtime_msec > 0 );
+    _ASSERT_( state == STATE_INVALID || state == STATE_IDLE || state == STATE_CONFIGURED )
+    _ASSERT_( conf.runtime_msec > 0 );
+    _ASSERT_( conf.timer_count <= MAX_TIMER_COUNT )
     
     // Do nothing if already configured or running or data is available
-    if ( _state >= STATE_CONFIGURED )
+    if ( state >= STATE_CONFIGURED )
       return;
     
     // Get clean variables and save the configuration
     cleanstate();
-    _ASSERT_ ( call Ack.noAck(&pkt) == SUCCESS )
+    config = conf;
     
-    _config = config;
+    problem = problemSet;
+    // Setup the problem
+    for( idx = 0, k = 0; problemSet[idx].sender != 0 && k < config.problem_idx; ++idx ) {
+      if ( problemSet[idx].sender == INVALID_SENDER ) 
+        ++k;
+    }
+    problem = problemSet + idx;
     
-    // Setup the problem and initialize the edges
-    problem = problemSet[_config.problem_idx];
+    // Initialize the edges
     for( idx = 0; problem[idx].sender != INVALID_SENDER; ++idx )
     {
+      edge_t* edge = problem + idx;
       // Clean values that are changed during operation
-      problem[idx].policy.inf_loop_on = FALSE;
-      problem[idx].nums.left_num = problem[idx].nums.send_num;
-      problem[idx].nextmsgid = START_MSG_ID;
+      edge->policy.inf_loop_on = FALSE;
+      edge->nums.left_num = edge->nums.send_num;
+      edge->nextmsgid = START_MSG_ID;
             
       // If the sender is not this node, continue
-      if( problem[idx].sender != TOS_NODE_ID )
+      if( edge->sender != TOS_NODE_ID )
         continue;
 
-      // Set the pending bits if this node needs to send at start        
-      if ( problem[idx].policy.start_trigger == SEND_ON_INIT )
+      // Set the pending bits if this node needs to send at start
+      if ( edge->policy.start_trigger == SEND_ON_INIT ) {
         postNewTrigger( 1<<idx );
+
+      // Set the timer masks if this node needs to send at timer ticks        
+      } else if ( edge->policy.start_trigger == SEND_ON_TIMER ) {
+        tickMask_start[edge->timers.start] |= 1 << idx;
+      }
+      
+      // Set the timer masks if this node needs to stop on timer ticks        
+      if ( (edge->policy.stop_trigger & STOP_ON_TIMER) != 0 )
+        tickMask_stop[edge->timers.stop] |= 1 << idx;
     }
+    
     SET_STATE( STATE_CONFIGURED )
     signal BenchmarkCore.setupDone();
   }
   
-  /** RESETS THE CORE **/
-  command void BenchmarkCore.reset() {
-    SET_STATE ( STATE_INVALID );
-    call TestTimer.stop();
-    
-    // TODO:
-    //call TriggerTimer.stop();
-
-    cleanstate();
-    signal BenchmarkCore.resetDone();
-  }
-  
-  /** START THE REAL BENCHMARK */
-  void startBenchmark() {
-    // If this node sends initial message(s)
-    if ( pending )
-      post sendPending();
-
-    // Start the test timer      
-    call TestTimer.startOneShot(_config.runtime_msec); 
-  }
-  
   /** START THE CURRENTLY CONFIGURED BENCHMARK */
   command error_t Test.start() { 
-    _ASSERT_( _state == STATE_CONFIGURED )
+    _ASSERT_( state == STATE_CONFIGURED )
     
     // If a pre-benchmark delay is requested, make a delay
-    if ( _config.pre_run_msec > 0 ) {
+    if ( config.pre_run_msec > 0 ) {
       SET_STATE ( STATE_PRE_RUN )
-      call TestTimer.startOneShot( _config.pre_run_msec );
+      call TestTimer.startOneShot( config.pre_run_msec );
     } else {
       SET_STATE( STATE_RUNNING )
       startBenchmark();         
     }
-    
-    //TODO: TimerFarm start();
-    
     return SUCCESS; 
   }
     
   /** STOP A TEST */
   command error_t Test.stop() {
-    _ASSERT_( _state == STATE_PRE_RUN || _state == STATE_RUNNING || _state == STATE_POST_RUN )
+    _ASSERT_( state == STATE_PRE_RUN || state == STATE_RUNNING || state == STATE_POST_RUN )
     
     call TestTimer.stop();
     SET_STATE( STATE_FINISHED );
-    
-    // TODO: TimerFarm stop
+    stopTimers();
+   
     signal BenchmarkCore.finished();
   }
     
   event void TestTimer.fired() {
     uint8_t i = 0;
-    switch(_state) {
+    switch(state) {
     
       case STATE_PRE_RUN:
         SET_STATE( STATE_RUNNING )
@@ -246,12 +291,13 @@ implementation {
         
       case STATE_RUNNING:
         
-        // TODO: TimerFarm stop
+        // Stop the trigger timers
+        stopTimers();
         
         // check if we need a post-run state
-        if ( _config.post_run_msec > 0 ) {
+        if ( config.post_run_msec > 0 ) {
           SET_STATE( STATE_POST_RUN )
-          call TestTimer.startOneShot(_config.post_run_msec);
+          call TestTimer.startOneShot(config.post_run_msec);
           break;
         } 
         // break; missing: fallback to STATE_POST_RUN !
@@ -267,7 +313,30 @@ implementation {
         break;
         
       default:
-        _ASSERT_( FALSE )
+        _ASSERT_( 0 )
+    }
+  }
+  
+  event void TriggerTimer.fired[uint8_t id]() {
+    
+    // start on timer tick
+    if ( tickMask_start[id] != 0 ) {
+      postNewTrigger(tickMask_start[id]);
+      post sendPending();
+    }
+    
+    // stop on timer tick
+    if ( tickMask_stop[id] != 0 ) {
+      uint8_t i = 0;
+      pending_t temp = tickMask_stop[id];
+      for ( i = 0; temp; ++i, temp >>= 1) {
+        if ( (temp & 0x1) != 0 && 
+             (problem[i].policy.stop_trigger & STOP_ON_TIMER) != 0 ) {
+            // This works for INFINITE and also for non-INF edges
+            problem[i].policy.inf_loop_on = FALSE;
+            problem[i].nums.left_num = problem[i].nums.send_num;
+        }
+      }
     }
   }
   
@@ -280,7 +349,7 @@ implementation {
     edge_t* edge = problem + msg->edgeid;     
      
     // In case the message is sent to this mote (also)
-    if (  ( _state == STATE_RUNNING || _state == STATE_POST_RUN ) && 
+    if (  ( state == STATE_RUNNING || state == STATE_POST_RUN ) && 
           ( edge->receiver == TOS_NODE_ID || edge->receiver == AM_BROADCAST_ADDR ) ){
 
       ++(stat->receiveCount);
@@ -306,11 +375,12 @@ implementation {
       edge->nextmsgid = msg->msgid + 1;
 
       // Check whether we have to reply
-      if ( edge->reply_on )
+      if ( edge->reply_on != 0 ) {
         postNewTrigger(edge->reply_on);
+        post sendPending();
+      }
     }
     return bufPtr;
-
   }
   
   event void TxTest.sendDone(message_t* bufPtr, error_t error) {
@@ -323,9 +393,9 @@ implementation {
     edge_t* edge = problem + msg->edgeid;
 
     _ASSERT_( sendlock == LOCKED )
-    _ASSERT_( _state == STATE_RUNNING || _state == STATE_POST_RUN || _state == STATE_FINISHED )
+    _ASSERT_( state == STATE_RUNNING || state == STATE_POST_RUN || state == STATE_FINISHED )
     
-    if ( _state == STATE_RUNNING || _state == STATE_POST_RUN ) {
+    if ( state == STATE_RUNNING || state == STATE_POST_RUN ) {
 
       _ASSERT_( edge->sender == TOS_NODE_ID )
       _ASSERT_( pending & (1 << msg->edgeid) )
@@ -335,7 +405,7 @@ implementation {
         ++(stat->sendDoneSuccessCount);
 
         // If ACK is not requested
-        if ( edge->policy.need_ack == 0 && (_config.flags & GLOBAL_USE_ACK) == 0 ) {
+        if ( edge->policy.need_ack == 0 && (config.flags & GLOBAL_USE_ACK) == 0 ) {
           ++(edge->nextmsgid);
 
         // If ACK is requested and received
@@ -344,7 +414,7 @@ implementation {
           ++(stat->wasAckedCount);
           wasACK = TRUE;
             
-        // Else the message is not considered to be sent
+        // Otherwise ACK requested but not received
         } else {
           ++(stat->notAckedCount);
           validSend = FALSE;
@@ -355,9 +425,13 @@ implementation {
         validSend = FALSE;
       }
 
-      // If message is considered to be sent
-      if ( validSend ) {
-        
+      // If message is NOT considered to be sent
+      if ( ! validSend ) {
+        ++(stat->resendCount);
+        ++(stat->triggerCount);
+
+      } else {
+
         // Decrement the number of messages that are left to send
         // and restore the original value if necessary
         // this works for INFINITE and also for non-INF edges
@@ -365,21 +439,21 @@ implementation {
           // Restore the value
           edge->nums.left_num = edge->nums.send_num;
           sendMore = FALSE;
-        }
-       
+        } 
+        
         // Check if we need to stop sending on ACK
-        if ( wasACK && edge->policy.stop_trigger & STOP_ON_ACK ) {
+        if ( wasACK && (edge->policy.stop_trigger & STOP_ON_ACK != 0) ) {
             // This works for INFINITE and also for non-INF edges
             edge->policy.inf_loop_on = FALSE;
             edge->nums.left_num = edge->nums.send_num;
             sendMore = FALSE;
         }
-            
-      } else {
-        ++(stat->resendCount);
-        ++(stat->triggerCount);
-        // sendMore == TRUE;
-      } 
+ 
+        // If the infinite sending loop has been stopped
+        if ( edge->nums.send_num == INFINITE && edge->policy.inf_loop_on != 1 ) {
+          sendMore = FALSE;
+        }   
+      }
           
       // Remove the pending bit if applicable     
       if ( !sendMore ) {
@@ -400,17 +474,15 @@ implementation {
     uint8_t     oldlock;
     testmsg_t*  t_msg;
     
+    // safe locking    
+    atomic{
+      oldlock = sendlock;
+      sendlock = LOCKED;
+    }
+        
     // In case we have any chance to send    
-    if ( _state == STATE_RUNNING && pending ) {
+    if ( oldlock == UNLOCKED && state == STATE_RUNNING && pending ) {
 
-      // safe locking    
-      atomic{
-        oldlock = sendlock;
-        sendlock = LOCKED;
-      }
-      if ( oldlock == LOCKED )
-        return;
-     
       // find the next edge on which there exist any request
       do {
         pidx = 1 << (++eidx);
@@ -429,10 +501,10 @@ implementation {
       t_msg->msgid = problem[eidx].nextmsgid;
       
       // Find out the required addressing mode
-      address = ( _config.flags & GLOBAL_USE_BCAST ) ? AM_BROADCAST_ADDR : problem[eidx].receiver;
+      address = ( config.flags & GLOBAL_USE_BCAST ) ? AM_BROADCAST_ADDR : problem[eidx].receiver;
       
       // Find out whether we need to use ACK
-      if ( (_config.flags & GLOBAL_USE_ACK) || problem[eidx].policy.need_ack == 1 ) {
+      if ( (config.flags & GLOBAL_USE_ACK) || problem[eidx].policy.need_ack == 1 ) {
         call Ack.requestAck(&pkt);
       } else {
         call Ack.noAck(&pkt);
