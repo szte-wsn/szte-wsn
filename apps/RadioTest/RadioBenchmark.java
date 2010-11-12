@@ -63,11 +63,17 @@ public class RadioBenchmark {
                                 .withLongOpt("time")
                                 .create( "t" );
 
-      Option trigger = OptionBuilder.withArgName( "number" )
+      Option trigger1 = OptionBuilder.withArgName( "number" )
                                 .hasArg()
                                 .withDescription( "The sending trigger time (it is ignored in some policies).  [default : " + default_sendtrig_msec + " msec]" )
                                 .withLongOpt("trigger")
-                                .create( "tr" );
+                                .create( "tr1" );
+                                
+      Option trigger2 = OptionBuilder.withArgName( "number" )
+                                .hasArg()
+                                .withDescription( "The sending trigger time (it is ignored in some policies).  [default : " + default_sendtrig_msec + " msec]" )
+                                .withLongOpt("trigger")
+                                .create( "tr2" );
 
       Option lastchance = OptionBuilder.withArgName( "number" )
                                 .hasArg()
@@ -87,7 +93,8 @@ public class RadioBenchmark {
 
       opt.addOption(problem);
       opt.addOption(runtime);
-      opt.addOption(trigger);
+      opt.addOption(trigger1);
+      opt.addOption(trigger2);
       opt.addOption(lastchance);
       opt.addOption(lpl);
       opt.addOption(xml);
@@ -114,10 +121,20 @@ public class RadioBenchmark {
         if ( runtimemsec <= 0 )
           throw new MissingOptionException("Invalid runtime specified!");
       
-        int triggermsec = cl.hasOption("tr") 
-                                ? Integer.parseInt(cl.getOptionValue("tr")) 
+        short trigcount = 0;
+        if (cl.hasOption("tr1"))
+          ++trigcount;
+        if (cl.hasOption("tr2"))
+          ++trigcount;
+        
+        int triggermsec1 = cl.hasOption("tr1") 
+                                ? Integer.parseInt(cl.getOptionValue("tr1")) 
                                 : default_sendtrig_msec;
-        if ( triggermsec <= 0 )
+        int triggermsec2 = cl.hasOption("tr2") 
+                                ? Integer.parseInt(cl.getOptionValue("tr2")) 
+                                : default_sendtrig_msec;
+                                                                
+        if ( triggermsec1 <= 0 || triggermsec2 <= 0 )
           throw new MissingOptionException("Invalid trigger time specified!");
 
         int lchance = cl.hasOption("lc") 
@@ -148,12 +165,16 @@ public class RadioBenchmark {
         st.set_pre_run_msec((short)0);
         st.set_runtime_msec(runtimemsec);
         st.set_post_run_msec(lchance);
-        
         st.set_flags(flags);
-        st.set_timer_start_seed((short)0);
         
-        st.set_timer_freq(new long[] {0,0,0,0});
-
+        st.set_timer_count(trigcount);
+        
+        st.set_timers_isoneshot(new byte[]{1,0,0,0});
+        st.set_timers_delay(new long[]{0,5,0,0});
+        st.set_timers_period_msec(new long[]{triggermsec1,triggermsec2,0,0});
+        
+        System.out.println(st.toString());
+        
         BenchmarkController rtc = new BenchmarkController(problemidx);
         
         rtc.resetMotes();

@@ -14,8 +14,8 @@ interface BenchmarkCore {
    */
   command uint16_t getDebug();
   
-  /** Configures the benchmark core with 'config' */
-  command void setup(setup_t config);
+  /** Configures the benchmark core with 'conf' */
+  command void setup(setup_t conf);
   
   /** Indicates the successfull configuration of the benchmark */
   event void setupDone();

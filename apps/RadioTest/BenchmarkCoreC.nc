@@ -29,9 +29,13 @@ implementation {
   components LedsC;
   Core.Leds -> LedsC;
   
+  components new VirtualizeTimerC(TMilli,MAX_TIMER_COUNT) as TTimer;
+  components new TimerMilliC() as TTimerFrom;
+  TTimer.TimerFrom -> TTimerFrom;
+  Core.TriggerTimer -> TTimer;
+  
   StdControl = Core;
   BenchmarkCore = Core;
   Init = Core;
-  
 
 }

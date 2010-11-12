@@ -63,9 +63,9 @@ public class BenchmarkController implements MessageListener {
   // Conformance to the NesC code
   // refer to RadioTestCases.h
   public static final short PROBLEMSET_COUNT = 13;
-  private static short[] trproblem = new short[] { 0,0,0,0,0,0,0,0,0,0,0,1,1,1 };
-  private static short[] motecount = new short[] { 2,2,2,2,2,2,2,3,2,3,3,4,5,2 };
-  private static short[] edgecount = new short[] { 1,1,1,1,1,1,1,6,2,3,6,3,6,1 };
+  private static short[] trproblem = new short[] { 0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+  private static short[] motecount = new short[] { 2,2,2,2,2,2,2,2,2,2,2,2,2,2 };
+  private static short[] edgecount = new short[] { 1,1,1,1,1,1,1,1,2,1,1,1,1,1 };
 
 	public BenchmarkController(final short p)
 	{
@@ -104,7 +104,6 @@ public class BenchmarkController implements MessageListener {
     
     String out = "> Problem: " + config.get_problem_idx();
     out += " | Runtime: " + config.get_runtime_msec() + " ms";
-    out += " | Trigger: " + ((trproblem[pidx] != 0) ? config.get_timer_freq()[0] : 0)  + " ms";
     out += " | LCTime: " + config.get_post_run_msec() + " ms";
     out += " | ACK/F-BC/LPL: ";
     out += ( config.get_flags() & 0x1 ) > 0 ? "On/" : "Off/";
@@ -123,6 +122,11 @@ public class BenchmarkController implements MessageListener {
     cmsg.set_config_lastchance_msec(config.get_lastchance_msec());
     cmsg.set_config_lplwakeupintval(config.get_lplwakeupintval());*/
     smsg.set_config_flags(config.get_flags());
+    
+    smsg.set_config_timer_count(config.get_timer_count());
+    smsg.set_config_timers_isoneshot(config.get_timers_isoneshot());
+    smsg.set_config_timers_delay(config.get_timers_delay());
+    smsg.set_config_timers_period_msec(config.get_timers_period_msec());
     
     // SYNC-request control message
     CtrlMsgT cmsg = new CtrlMsgT();
