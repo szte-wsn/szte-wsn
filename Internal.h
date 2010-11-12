@@ -36,8 +36,6 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
-#define MAX_EDGE_COUNT  1
-#define MAX_NODE_COUNT  10
 #define MAX_TIMER_COUNT 4
 
 #if MAX_EDGE_COUNT <= 8
@@ -53,52 +51,47 @@
 #endif
 typedef pending_t edgeaddr_t;
 
-#if MAX_TIMER_COUNT <= 4
-  typedef uint8_t timer_base_t;
-  #define TIMER_BIT_COUNT 4
-#elif MAX_TIMER_COUNT <= 8
-  typedef uint16_t timer_base_t;
-  #define TIMER_BIT_COUNT 8  
-#elif MAX_TIMER_COUNT <= 16
-  typedef uint32_t timer_base_t;
-  #define TIMER_BIT_COUNT 16  
-#elif MAX_TIMER_COUNT <= 32
-  typedef uint64_t timer_base_t;
-  #define TIMER_BIT_COUNT 32  
-#else
-  #error "MAX_TIMER_COUNT is set too high! The current limit is 32!"
-#endif
-
 enum {
   // Policy flags
   GLOBAL_USE_ACK           = 1<<0,
   GLOBAL_USE_BCAST         = 1<<1,
   GLOBAL_USE_LPL           = 1<<2,
+  
+  // Sending flags
+  SEND_NONE       = 0,
+  SEND_ON_INIT    = 1,
+  SEND_ON_TIMER   = 2,
+
+  STOP_ON_ACK     = 1<<0,
+  STOP_ON_TIMER   = 1<<1,
+  
+  NEED_ACK = 1,
+  
+  INFINITE = 0,
 };
 
 typedef struct flag_t {
-  uint8_t start_trigger : 3;      // When to start sending messages
-  uint8_t stop_trigger : 2;       // When to stop an infinite sending loop
-  uint8_t need_ack : 1;           // ACK is needed?
-  uint8_t inf_loop_on : 1;        // Whether an infinite sending loop is active
-  uint8_t reserved : 1;           // Reserved for future expansion
+  uint8_t       start_trigger : 3; // When to start sending messages
+  uint8_t       stop_trigger  : 2; // When to stop an infinite sending loop
+  uint8_t       need_ack      : 1; // ACK is needed?
+  uint8_t       inf_loop_on   : 1; // Whether an infinite sending loop is active
+  uint8_t       reserved      : 1; // Reserved for future expansion
 } flag_t;
 
-typedef struct timermask_t {
-  timer_base_t start_timers: TIMER_BIT_COUNT;
-  timer_base_t stop_timers: TIMER_BIT_COUNT;
-} timermask_t;
-
+typedef struct timerset_t {
+  uint8_t       start;
+  uint8_t       stop;
+} timerset_t;
 
 typedef struct num_t {
-  uint8_t send_num : 4;           // How many messages to transmit in general
-  uint8_t left_num : 4;           // How many messages are left to transmit
+  uint8_t       send_num;         // How many messages to transmit in general
+  uint8_t       left_num;         // How many messages are left to transmit
 } num_t;
 
 typedef struct edge_t {
   uint16_t      sender;           // Sender end of the edge
   uint16_t      receiver;         // Receiver end of the edge
-  timermask_t   timers;           // Timers associated to this edge
+  timerset_t    timers;           // Timers associated to this edge
   flag_t        policy;           // Sending policies, settings, triggers
   num_t         nums;             // Message counters
   edgeaddr_t    reply_on;         // The edge bitmask used when sending on reception
@@ -142,6 +135,12 @@ typedef nx_struct profile_t {
 } profile_t;
 
 
+typedef nx_struct timersetup_t {
+  nx_bool       isoneshot;
+  nx_uint32_t   delay;
+  nx_uint32_t   period_msec;
+} timersetup_t;
+
 // Basic setup type
 typedef nx_struct setup_t {
   nx_uint8_t    problem_idx;      // The problem we should test
@@ -151,8 +150,8 @@ typedef nx_struct setup_t {
   nx_uint32_t   post_run_msec;
   
   nx_uint8_t    flags;            // Global flags ( such as ACK, LPL, ... )
-  nx_uint32_t   timer_start_seed;
-  nx_uint32_t   timer_freq[MAX_TIMER_COUNT];
+  nx_uint8_t    timer_count;
+  timersetup_t  timers[MAX_TIMER_COUNT];
 } setup_t;
 
 #endif
