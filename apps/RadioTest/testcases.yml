@@ -56,11 +56,15 @@
 # This file is in YAML format, keep it well-formed!
 ##
 
+timer1 : { randomseed: 20, t0: 100, period: 50, isOneShot: false }
+
 ## Full-scale capabilities
 problem:       113
 motecount:     5
 randomstart:   20
-randomseed:    30
+timer1 : { randomseed: 20, t0: 100, period: 50, isOneShot: false }
+timer2 : { randomseed: 30, t0: 100, period: 100, isOneShot: true }
+
 edges:
   # direct addressing
   - { sender:  4, receiver:  1, trigger: timer1 }
