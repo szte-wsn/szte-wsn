@@ -80,17 +80,12 @@ implementation {
 
   event message_t* RxSetup.receive(message_t* bufPtr, void* payload, uint8_t len) {
     setupmsg_t*  msg   = (setupmsg_t*)payload;
-    switch ( msg->type ) {
-      case SETUP_BASE :
-          call BenchmarkCore.setup(msg->config);
-          break;
-    }
+    call BenchmarkCore.setup(msg->config);
     return bufPtr;
   }
 
   event message_t* RxCtrl.receive(message_t* bufPtr, void* payload, uint8_t len) {
     ctrlmsg_t*  msg   = (ctrlmsg_t*)payload;
-   
     switch ( msg->type ) {
     
       case CTRL_RESET :
