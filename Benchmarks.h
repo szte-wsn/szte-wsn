@@ -29,7 +29,7 @@
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 * OF THE POSSIBILITY OF SUCH DAMAGE.
 *
-* Author: Veress Krisztian
+* Author: Krisztian Veress
 *         veresskrisztian@gmail.com
 */
 
@@ -39,67 +39,53 @@
 #include "Internal.h"
 #include <AM.h>
 
-#define INVALID_SENDER 0xFFFF
+#define RT_BENCHMARK_END ,{INVALID_SENDER,0,{0,0},{0,0,0,0,0},{0,0},0,0},
+#define PROBLEMSET_END   {0,0,{0,0},{0,0,0,0,0},{0,0},0,0}
 
-#define RT_BENCHMARK {
-#define RT_BENCHMARK_END ,{INVALID_SENDER,0,{0,0},{0,0,0,0,0},{0,0},0,0}},
+#define INVALID_SENDER  AM_BROADCAST_ADDR
 
-#define TIMER(POS) (1<<(POS))
+#define ALL             AM_BROADCAST_ADDR
+
 #define REPLY_EDGE(POS) (1<<(POS))
 #define NUM(QTY) {(QTY), (QTY)}
 
 #define NO_REPLY      0
 #define START_MSG_ID  1
-#define TIMER_NONE {0,0}
-#define NULL_TIMER    0
+#define NO_TIMER      {0,0}
 
-#define ALL AM_BROADCAST_ADDR
+#define TIMER(X)      ((X)-1)
 
-// Sending flags
-enum {
-  SEND_NONE       = 0,
-  SEND_ON_INIT    = 1,
-  SEND_ON_RECV    = 2,
-  SEND_ON_TIMER   = 3,
+edge_t problemSet[] = {
 
-  STOP_ON_ACK     = 1<<0,
-  STOP_ON_TIMER   = 1<<1,
+  { 1, 2, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
+
+  { 1, 2, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
+
+  { 1, 2, NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
+
+  { 1, 2, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
+
+  { 1, 2, NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
+
+  { 1, 2, {TIMER(1),0} , { SEND_ON_TIMER,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
+
+  { 1, 2, {TIMER(1),0} , { SEND_ON_TIMER,  STOP_ON_ACK, 0, 0, 0 }, NUM(10), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
   
-  NEED_ACK = 1,
-  
-  INFINITE = 0,
-};
+  { 1, 2, {TIMER(1),TIMER(2)} , { SEND_ON_TIMER,  STOP_ON_TIMER, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
 
-edge_t problemSet[][(MAX_EDGE_COUNT+1)] = {
+  { 1, 2, {TIMER(1), 0} , { SEND_ON_TIMER,  0, 0, 0, 0 }, NUM(3), NO_REPLY, START_MSG_ID },
+  { 2, 1, {0,TIMER(2)} , { SEND_ON_INIT,  STOP_ON_TIMER | STOP_ON_ACK , 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
+  RT_BENCHMARK_END
 
-/** TRIGGER PROBLEMS -------------------------------------- */
-
-RT_BENCHMARK
-  { 1, 2, TIMER_NONE , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
-RT_BENCHMARK_END
-
-RT_BENCHMARK
-  { 1, 2, TIMER_NONE , { SEND_ON_INIT,  0, NEED_ACK, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
-RT_BENCHMARK_END
-
-RT_BENCHMARK
-  { 1, 2, TIMER_NONE , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID }
-RT_BENCHMARK_END
-
-RT_BENCHMARK
-  { 1, 2, TIMER_NONE , { SEND_ON_INIT,  0, NEED_ACK, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID }
-RT_BENCHMARK_END
-
-RT_BENCHMARK
-  { 1, 2, TIMER_NONE , { SEND_ON_INIT,  STOP_ON_ACK, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID }
-RT_BENCHMARK_END
-
-RT_BENCHMARK
-  { 1, 2, TIMER_NONE , { SEND_ON_INIT,  STOP_ON_ACK, NEED_ACK, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID }
-RT_BENCHMARK_END
-
+  PROBLEMSET_END
 }; // problemSet END
-
-#define PROBLEMSET_COUNT 6
 
 #endif
