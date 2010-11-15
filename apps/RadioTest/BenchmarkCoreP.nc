@@ -1,3 +1,38 @@
+/*
+* Copyright (c) 2010, University of Szeged
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions
+* are met:
+*
+* - Redistributions of source code must retain the above copyright
+* notice, this list of conditions and the following disclaimer.
+* - Redistributions in binary form must reproduce the above
+* copyright notice, this list of conditions and the following
+* disclaimer in the documentation and/or other materials provided
+* with the distribution.
+* - Neither the name of University of Szeged nor the names of its
+* contributors may be used to endorse or promote products derived
+* from this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+* FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+* COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+* INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+* SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+* STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+* ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+* OF THE POSSIBILITY OF SUCH DAMAGE.
+*
+* Author: Krisztian Veress
+*         veresskrisztian@gmail.com
+*/
+
 #define  _DEBUG_MODE_
 
 #include "Internal.h"
@@ -106,8 +141,13 @@ implementation {
   
   void startTimers() {
     uint8_t i;
-    for(i = 0; i< config.timer_count; ++i) {
-      uint32_t now = call TriggerTimer.getNow[0]();
+    for(i = 0; i< MAX_TIMER_COUNT; ++i) {
+      uint32_t now;
+    	// If the current timer is unused, do not start it
+    	if ( tickMask_start[i] == 0 && tickMask_stop[i] == 0 )
+    		continue;
+   		
+      now = call TriggerTimer.getNow[0]();
       if ( config.timers[i].isoneshot )
         call TriggerTimer.startOneShotAt[i](
           now + config.timers[i].delay,
@@ -205,8 +245,7 @@ implementation {
     
     _ASSERT_( state == STATE_INVALID || state == STATE_IDLE || state == STATE_CONFIGURED )
     _ASSERT_( conf.runtime_msec > 0 );
-    _ASSERT_( conf.timer_count <= MAX_TIMER_COUNT )
-    
+       
     // Do nothing if already configured or running or data is available
     if ( state >= STATE_CONFIGURED )
       return;
@@ -442,7 +481,7 @@ implementation {
         } 
         
         // Check if we need to stop sending on ACK
-        if ( wasACK && (edge->policy.stop_trigger & STOP_ON_ACK != 0) ) {
+        if ( wasACK && (edge->policy.stop_trigger & STOP_ON_ACK) != 0 ) {
             // This works for INFINITE and also for non-INF edges
             edge->policy.inf_loop_on = FALSE;
             edge->nums.left_num = edge->nums.send_num;
