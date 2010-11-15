@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2009, University of Szeged
+* Copyright (c) 2010, University of Szeged
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -150,7 +150,6 @@ typedef nx_struct setup_t {
   nx_uint32_t   post_run_msec;
   
   nx_uint8_t    flags;            // Global flags ( such as ACK, LPL, ... )
-  nx_uint8_t    timer_count;
   timersetup_t  timers[MAX_TIMER_COUNT];
 } setup_t;
 

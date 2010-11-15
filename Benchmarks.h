@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2009, University of Szeged
+* Copyright (c) 2010, University of Szeged
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,8 @@
 #include "Internal.h"
 #include <AM.h>
 
-#define RT_BENCHMARK_END ,{INVALID_SENDER,0,{0,0},{0,0,0,0,0},{0,0},0,0},
+#define _BMARK_START_  
+#define _BMARK_END_ ,{INVALID_SENDER,0,{0,0},{0,0,0,0,0},{0,0},0,0},
 #define PROBLEMSET_END   {0,0,{0,0},{0,0,0,0,0},{0,0},0,0}
 
 #define INVALID_SENDER  AM_BROADCAST_ADDR
@@ -57,33 +58,7 @@
 
 edge_t problemSet[] = {
 
-  { 1, 2, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
-
-  { 1, 2, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
-
-  { 1, 2, NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
-
-  { 1, 2, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
-
-  { 1, 2, NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
-
-  { 1, 2, {TIMER(1),0} , { SEND_ON_TIMER,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
-
-  { 1, 2, {TIMER(1),0} , { SEND_ON_TIMER,  STOP_ON_ACK, 0, 0, 0 }, NUM(10), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
-  
-  { 1, 2, {TIMER(1),TIMER(2)} , { SEND_ON_TIMER,  STOP_ON_TIMER, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
-
-  { 1, 2, {TIMER(1), 0} , { SEND_ON_TIMER,  0, 0, 0, 0 }, NUM(3), NO_REPLY, START_MSG_ID },
-  { 2, 1, {0,TIMER(2)} , { SEND_ON_INIT,  STOP_ON_TIMER | STOP_ON_ACK , 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
-  RT_BENCHMARK_END
+#include "DefinedBenchmarks.h"
 
   PROBLEMSET_END
 }; // problemSet END
