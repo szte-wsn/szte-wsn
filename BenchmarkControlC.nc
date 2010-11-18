@@ -55,6 +55,9 @@ implementation {
   components new DirectAMSenderC(AM_SYNCMSG_T)      as TxSync;
   components new DirectAMSenderC(AM_DATAMSG_T)      as TxData;
   
+  components LedsC;
+  Comm.Leds -> LedsC;
+  
   Comm.RxCtrl -> RxCtrl;
   Comm.RxSetup -> RxSetup;  
   Comm.TxSync -> TxSync;

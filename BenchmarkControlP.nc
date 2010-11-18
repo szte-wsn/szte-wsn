@@ -53,6 +53,8 @@ module BenchmarkControlP @safe() {
     interface Init as CoreInit;
     
     interface Packet;
+    
+    interface Leds;
   }
 
 }
@@ -87,7 +89,6 @@ implementation {
       msg->type = DATA_STAT_OK;
       msg->data_idx = resp_idx;
       msg->payload.stat = *(call BenchmarkCore.getStat(resp_idx));
-        
       call TxData.send(AM_BROADCAST_ADDR, &bpkt, sizeof(datamsg_t));
     
     // RESPONSE debug information
@@ -95,7 +96,6 @@ implementation {
 
       msg->type = DATA_DBG_OK;
       msg->payload.debug = call BenchmarkCore.getDebug();
-        
       call TxData.send(AM_BROADCAST_ADDR, &bpkt, sizeof(datamsg_t));
     }
   }
@@ -106,6 +106,8 @@ implementation {
     // RESPONSE the setup acknowledgement if applicable
     if ( resp_request == CTRL_SETUP_SYN && core_configured ) {
       msg->type = SYNC_SETUP_ACK;
+      msg->edgecnt = call BenchmarkCore.getEdgeCount();
+      msg->maxmoteid = call BenchmarkCore.getMaxMoteId();
       call TxSync.send(AM_BROADCAST_ADDR, &bpkt, sizeof(syncmsg_t));
     }
   }
