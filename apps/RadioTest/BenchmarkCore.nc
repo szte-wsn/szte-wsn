@@ -49,6 +49,19 @@ interface BenchmarkCore {
    */
   command uint16_t getDebug();
   
+  /**
+   * Requests the current edge count 
+   * @return the edge count of the current problem
+   */
+  command uint8_t getEdgeCount();
+  
+  /**
+   * Requests the maximal mote id present in the current benchmark
+   * @return the maximal mote id
+   */
+  command uint8_t getMaxMoteId();
+  
+  
   /** Configures the benchmark core with 'conf' */
   command void setup(setup_t conf);
   
