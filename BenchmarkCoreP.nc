@@ -67,6 +67,9 @@ module BenchmarkCoreP @safe() {
     
     interface LowPowerListening;
     interface Leds;
+    
+    interface Random;
+    interface Init as RandomInit;
   }
 
 }
@@ -96,6 +99,7 @@ implementation {
   message_t   pkt;
 
   edge_t*     problem;
+  uint8_t     c_edge_cnt,c_maxmoteid;
   
   stat_t      stats[MAX_EDGE_COUNT];
  
@@ -121,6 +125,7 @@ implementation {
    
     // Disassociate the problem    
     problem = (edge_t*)NULL;
+    c_edge_cnt = c_maxmoteid = 0;
     
     // Clear configuration values
     memset(&config,0,sizeof(setup_t));
@@ -142,19 +147,23 @@ implementation {
   void startTimers() {
     uint8_t i;
     for(i = 0; i< MAX_TIMER_COUNT; ++i) {
-      uint32_t now;
+      uint32_t now, delay;
+      
     	// If the current timer is unused, do not start it
     	if ( tickMask_start[i] == 0 && tickMask_stop[i] == 0 )
     		continue;
    		
       now = call TriggerTimer.getNow[0]();
+      delay = ( config.timers[i].delay != 0 ) 
+              ? (call Random.rand32() % config.timers[i].delay)
+              : 0;
       if ( config.timers[i].isoneshot )
         call TriggerTimer.startOneShotAt[i](
-          now + config.timers[i].delay,
+          now + delay,
           config.timers[i].period_msec);
       else
         call TriggerTimer.startPeriodicAt[i](
-          now + config.timers[i].delay,
+          now + delay,
           config.timers[i].period_msec);
     }
   }
@@ -169,6 +178,7 @@ implementation {
   /** INITIALIZE THE COMPONENT **/
   command error_t Init.init() {
     cleanstate();
+    call RandomInit.init();
     return SUCCESS;
   }
   
@@ -176,7 +186,7 @@ implementation {
   command stat_t* BenchmarkCore.getStat(uint16_t idx) { 
     _ASSERT_( idx < MAX_EDGE_COUNT )
     _ASSERT_( state == STATE_FINISHED )
-    return stats + idx;
+    return ( idx < c_edge_cnt ) ? stats + idx : NULL;
   }
   
   /** REQUEST DEBUG INFORMATION **/
@@ -187,6 +197,16 @@ implementation {
     return 0;
     #endif
   }
+  
+  /** REQUEST EDGE COUNT **/
+  command uint8_t BenchmarkCore.getEdgeCount() {
+    return c_edge_cnt;
+  }
+  
+  /** REQUEST MOTE COUNT **/
+  command uint8_t BenchmarkCore.getMaxMoteId() {
+    return c_maxmoteid;
+  }  
   
   /** RESETS THE CORE **/
   command void BenchmarkCore.reset() {
@@ -241,7 +261,7 @@ implementation {
   
   /** SETUP THE BENCHMARK **/
   command void BenchmarkCore.setup(setup_t conf) {
-    uint8_t   idx, k;
+    uint8_t   idx, k, maxmote;
     
     _ASSERT_( state == STATE_INVALID || state == STATE_IDLE || state == STATE_CONFIGURED )
     _ASSERT_( conf.runtime_msec > 0 );
@@ -262,6 +282,7 @@ implementation {
     }
     problem = problemSet + idx;
     
+    maxmote = 1;
     // Initialize the edges
     for( idx = 0; problem[idx].sender != INVALID_SENDER; ++idx )
     {
@@ -270,6 +291,12 @@ implementation {
       edge->policy.inf_loop_on = FALSE;
       edge->nums.left_num = edge->nums.send_num;
       edge->nextmsgid = START_MSG_ID;
+            
+      // Count the maximal mote id
+      if ( edge->sender > maxmote )
+        maxmote = edge->sender;
+      if ( edge->receiver > maxmote && edge->receiver != ALL )
+        maxmote = edge->receiver;
             
       // If the sender is not this node, continue
       if( edge->sender != TOS_NODE_ID )
@@ -288,6 +315,8 @@ implementation {
       if ( (edge->policy.stop_trigger & STOP_ON_TIMER) != 0 )
         tickMask_stop[edge->timers.stop] |= 1 << idx;
     }
+    c_edge_cnt = idx;
+    c_maxmoteid = maxmote;
     
     SET_STATE( STATE_CONFIGURED )
     signal BenchmarkCore.setupDone();
@@ -300,7 +329,7 @@ implementation {
     // If a pre-benchmark delay is requested, make a delay
     if ( config.pre_run_msec > 0 ) {
       SET_STATE ( STATE_PRE_RUN )
-      call TestTimer.startOneShot( config.pre_run_msec );
+      call TestTimer.startOneShot( call Random.rand32() % config.pre_run_msec );
     } else {
       SET_STATE( STATE_RUNNING )
       startBenchmark();         
@@ -379,17 +408,14 @@ implementation {
     }
   }
   
-  // event void TriggerTimer.fired() {}
-  
   event message_t* RxTest.receive(message_t* bufPtr, void* payload, uint8_t len) {
     testmsg_t* msg = (testmsg_t*)payload;
     // helper variables
     stat_t* stat = stats + msg->edgeid;
     edge_t* edge = problem + msg->edgeid;     
-     
+    
     // In case the message is sent to this mote (also)
-    if (  ( state == STATE_RUNNING || state == STATE_POST_RUN ) && 
-          ( edge->receiver == TOS_NODE_ID || edge->receiver == AM_BROADCAST_ADDR ) ){
+    if ( state == STATE_RUNNING || state == STATE_POST_RUN ){
 
       ++(stat->receiveCount);
 
