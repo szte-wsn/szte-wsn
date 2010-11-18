@@ -88,6 +88,10 @@ typedef struct num_t {
   uint8_t       left_num;         // How many messages are left to transmit
 } num_t;
 
+// Base types for message counting / message sequence values
+typedef uint16_t    seq_base_t;
+typedef nx_uint16_t nx_seq_base_t;
+
 typedef struct edge_t {
   uint16_t      sender;           // Sender end of the edge
   uint16_t      receiver;         // Receiver end of the edge
@@ -95,37 +99,34 @@ typedef struct edge_t {
   flag_t        policy;           // Sending policies, settings, triggers
   num_t         nums;             // Message counters
   edgeaddr_t    reply_on;         // The edge bitmask used when sending on reception
-  uint16_t      nextmsgid;        // The message id to send (on send side)/expected to receive (on receive side)
+  seq_base_t    nextmsgid;        // The message id to send (on send side)/expected to receive (on receive side)
 } edge_t;
-
-// Base type
-typedef nx_uint16_t stat_base_t;
 
 // Stats type
 typedef nx_struct stat_t {
-  stat_base_t   triggerCount;
-  stat_base_t   backlogCount;
-  stat_base_t   resendCount;
+  nx_seq_base_t    triggerCount;
+  nx_seq_base_t    backlogCount;
+  nx_seq_base_t    resendCount;
 
-  stat_base_t   sendCount;
-  stat_base_t   sendSuccessCount;
-  stat_base_t   sendFailCount;
+  nx_seq_base_t    sendCount;
+  nx_seq_base_t    sendSuccessCount;
+  nx_seq_base_t    sendFailCount;
 
-  stat_base_t   sendDoneCount;
-  stat_base_t   sendDoneSuccessCount;
-  stat_base_t   sendDoneFailCount;
+  nx_seq_base_t    sendDoneCount;
+  nx_seq_base_t    sendDoneSuccessCount;
+  nx_seq_base_t    sendDoneFailCount;
 
-  stat_base_t   wasAckedCount;
-  stat_base_t   notAckedCount;
+  nx_seq_base_t    wasAckedCount;
+  nx_seq_base_t    notAckedCount;
 
-  stat_base_t   receiveCount;
-  stat_base_t   expectedCount;
-  stat_base_t   duplicateCount;
-  stat_base_t   forwardCount;
-  stat_base_t   missedCount;
-  stat_base_t   wrongCount;
+  nx_seq_base_t    receiveCount;
+  nx_seq_base_t    expectedCount;
+  nx_seq_base_t    duplicateCount;
+  nx_seq_base_t    forwardCount;
+  nx_seq_base_t    missedCount;
+  nx_seq_base_t    wrongCount;
 
-  nx_uint8_t    remainedCount;
+  nx_uint8_t       remainedCount;
 } stat_t;
 
 typedef nx_struct profile_t {
@@ -133,7 +134,6 @@ typedef nx_struct profile_t {
   nx_uint32_t   max_interrupt;
   nx_uint32_t   max_latency;
 } profile_t;
-
 
 typedef nx_struct timersetup_t {
   nx_bool       isoneshot;
