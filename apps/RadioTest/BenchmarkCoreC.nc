@@ -69,6 +69,10 @@ implementation {
   TTimer.TimerFrom -> TTimerFrom;
   Core.TriggerTimer -> TTimer;
   
+  components RandomMlcgC;
+  Core.Random -> RandomMlcgC;
+  Core.RandomInit -> RandomMlcgC;
+  
   StdControl = Core;
   BenchmarkCore = Core;
   Init = Core;
