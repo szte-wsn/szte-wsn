@@ -65,15 +65,13 @@ enum {
   DATA_DBG_OK       = 41,
   
   CTRL_PROFILE_REQ  = 50,
-  DATA_PROFILE_OK   = 51,
-
-  DATA_NEXISTS      = 80,
+  DATA_PROFILE_OK   = 51
 };
 
 
 typedef nx_struct testmsg_t {
   nx_uint8_t    edgeid;           // On which edge this message is intended to propagate through
-  nx_uint16_t   msgid;            // The auto-increment id of the message on the preset edge
+  nx_seq_base_t msgid;            // The auto-increment id of the message on the preset edge
 } testmsg_t;
 
 
@@ -84,6 +82,8 @@ typedef nx_struct ctrlmsg_t {
 
 typedef nx_struct syncmsg_t {
   nx_uint8_t    type;
+  nx_uint8_t    edgecnt;          // How many edges are in the current benchmark?
+  nx_uint8_t    maxmoteid;        // How many motes are in the current benchmark?
 } syncmsg_t;
 
 typedef nx_struct setupmsg_t {
