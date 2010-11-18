@@ -1,27 +1,27 @@
 BUILD_EXTRA_DEPS = CtrlMsgT.java DataMsgT.java SyncMsgT.java SetupMsgT.java StatT.java SetupT.java ProfileT.java
-CLEAN_EXTRA      = CtrlMsgT.java DataMsgT.java SyncMsgT.java SetupMsgT.java StatT.java SetupT.java ProfileT.java main.elf *.class
+CLEAN_EXTRA      = main.elf java/*.class java/*T.java
 
 StatT.java: Internal.h
-	mig -target=$(PLATFORM) -java-classname=StatT java Internal.h stat_t -o $@
+	mig -target=$(PLATFORM) -java-classname=StatT java Internal.h stat_t -o java/$@
 
 SetupT.java: Internal.h
-	mig -target=$(PLATFORM) -java-classname=SetupT java Internal.h setup_t -o $@
+	mig -target=$(PLATFORM) -java-classname=SetupT java Internal.h setup_t -o java/$@
 
 CtrlMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=CtrlMsgT java Messages.h ctrlmsg_t -o $@
+	mig -target=$(PLATFORM) -java-classname=CtrlMsgT java Messages.h ctrlmsg_t -o java/$@
 	
 SyncMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=SyncMsgT java Messages.h syncmsg_t -o $@
+	mig -target=$(PLATFORM) -java-classname=SyncMsgT java Messages.h syncmsg_t -o java/$@
 
 SetupMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=SetupMsgT java Messages.h setupmsg_t -o $@
+	mig -target=$(PLATFORM) -java-classname=SetupMsgT java Messages.h setupmsg_t -o java/$@
 	
 DataMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=DataMsgT java Messages.h datamsg_t -o $@
+	mig -target=$(PLATFORM) -java-classname=DataMsgT java Messages.h datamsg_t -o java/$@
 
 ResponseMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=ResponseMsgT java Messages.h responsemsg_t -o $@
+	mig -target=$(PLATFORM) -java-classname=ResponseMsgT java Messages.h responsemsg_t -o java/$@
 
 ProfileT.java: Internal.h
-	mig -target=$(PLATFORM) -java-classname=ProfileT java Internal.h profile_t -o $@
+	mig -target=$(PLATFORM) -java-classname=ProfileT java Internal.h profile_t -o java/$@
 
