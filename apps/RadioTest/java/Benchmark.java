@@ -35,11 +35,12 @@
 import org.apache.commons.cli.*;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.io.PrintStream;
 
 public class Benchmark {
 
   private static int def_runtimes[] = { 0, 1000, 20 };
-  private static int def_timers[] =   { 20,100 };
+  private static int def_timers[] =   { 1, 20,100 };
 
   public static Options opt;
 
@@ -89,6 +90,7 @@ public class Benchmark {
     opt3.addOption(opt.getOption("tr"));
     opt3.addOption(opt.getOption("ack"));
     opt3.addOption(opt.getOption("bcast"));
+    opt3.addOption(opt.getOption("xml"));
     System.out.println();
     System.out.println("5. Running a specific benchmark with command-line arguments");
     System.out.println("--------------------------------------------------------------------");
@@ -141,13 +143,18 @@ public class Benchmark {
                                 .create( "lc" );
                                                                 
       // Timer-related option
-      String deftimer = "0," + def_timers[0] + "," + def_timers[1];
+      String deftimer = def_timers[0] + "," + def_timers[1] + "," + def_timers[2];
       Option trtimers = OptionBuilder.withArgName( "timer config list" )
                                 .hasArg()
-                                .withDescription( "Trigger timer configuration index:isoneshot,maxrandomdelay,period.  [default : 0:"+ deftimer + " ]" )
+                                .withDescription( "Trigger timer configuration index:isoneshot,maxrandomdelay,period.  [default : 1:"+ deftimer + " ]" )
                                 .withLongOpt("triggers")
                                 .create( "tr" );
 
+                          
+      Option xml = OptionBuilder.withArgName( "file" )
+                                .hasArg()
+                                .withDescription( "Produce xml output" )
+                                .create( "xml" );                          
                           
       opt.addOption("h", "help", false, "Print help for this application");
       opt.addOption("r", "reset", false, "Reset all motes");
@@ -156,6 +163,7 @@ public class Benchmark {
       opt.addOption(randomstart);
       opt.addOption(runtime);
       opt.addOption(lastchance);
+      opt.addOption(xml);
         
       opt.addOption(trtimers);
       opt.addOption("ack", false, "Force acknowledgements. [default : false]");
@@ -180,7 +188,7 @@ public class Benchmark {
         // Download the data
         BenchmarkController rbr = new BenchmarkController();
         if ( rbr.sync() && rbr.download() )
-            rbr.printResults(false);
+            rbr.printResults(System.out,false);
 
       } else if ( cl.hasOption('F') ) {
         String bfile = cl.getOptionValue('F');
@@ -232,42 +240,59 @@ public class Benchmark {
         long period[] = new long[BenchmarkStatic.MAX_TIMER_COUNT];
         
         for( int i = 0; i < BenchmarkStatic.MAX_TIMER_COUNT; ++i ) {
-          ios[i] = 0;
-          delay[i] = def_timers[0];
-          period[i] = def_timers[1];
+          ios[i] = (byte)def_timers[0];
+          delay[i] = def_timers[1];
+          period[i] = def_timers[2];
         }
         
         if ( cl.hasOption("tr") ) {
           String[] triggers = cl.getOptionValues("tr");
-          Pattern pattern = Pattern.compile("(\\d):(\\d+),(\\d+),(\\d+)");
+          Pattern pattern = Pattern.compile("(\\d+):(\\d+),(\\d+),(\\d+)");
 
           for( int i = 0; i < triggers.length; ++i ) {
             Matcher matcher = pattern.matcher(triggers[i]);
             if (matcher.find()) {
               int trigidx = Integer.parseInt(matcher.group(1));
-              ios[trigidx] = Byte.parseByte(matcher.group(2));
+              if ( trigidx < 1 || trigidx > BenchmarkStatic.MAX_TIMER_COUNT)
+                throw new MissingOptionException("Valid timer indexes are : [1.." + BenchmarkStatic.MAX_TIMER_COUNT + "], see help!");
+              --trigidx;
+              
+              ios[trigidx] = (byte)Integer.parseInt(matcher.group(2));
               
               delay[trigidx] = Integer.parseInt(matcher.group(3));
               period[trigidx] = Integer.parseInt(matcher.group(4));
               
-              if (period[trigidx] <= 0 || delay[trigidx] <= 0 || ios[trigidx] < 0 || ios[trigidx] > 1)
-                throw new MissingOptionException("Trigger timer "+trigidx+" is invalid, see help!");
+              if (period[trigidx] < 0 || delay[trigidx] < 0 || ios[trigidx] < 0 || ios[trigidx] > 1)
+                throw new MissingOptionException("Trigger timer "+ (trigidx+1) +" is invalid, see help!");
+              
+              // at time 0, only one-shot timers are allowed to fire
+              if (period[trigidx] == 0 && ios[trigidx] != 1)
+                throw new MissingOptionException("Only one-shot timers are allowed with 0 ms period!");
               
             } else
               throw new MissingOptionException("Invalid trigger timer specification, see help!");
           }
           
         }
+        
         st.set_timers_isoneshot(ios);
         st.set_timers_delay(delay);
         st.set_timers_period_msec(period);
 
         // Reset the motes
         BenchmarkController rbr = new BenchmarkController();
+        
+        PrintStream ps = cl.hasOption("xml") ? new PrintStream(cl.getOptionValue("xml")) : System.out;
+        
         // Run the test
         if (  rbr.reset() && rbr.setup(st) && rbr.run() && rbr.download() ) {
-          rbr.printResults(false);
-          
+          if (cl.hasOption("xml")) {
+            ps.println(BenchmarkCommons.xmlHeader());
+            rbr.printResults(ps,true);
+            ps.println(BenchmarkCommons.xmlFooter());
+          }
+          else
+            rbr.printResults(ps,false);
         } else {
           System.exit(1);
         } 
