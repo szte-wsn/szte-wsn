@@ -85,7 +85,7 @@ implementation {
     STATE_RUNNING     = 0x4,
     STATE_POST_RUN    = 0x5,
     STATE_FINISHED    = 0x6,
-    STATE_UPLOADING   = 0x7,
+    STATE_DEBUGGING   = 0x7,
     
     // Sendlock states
     UNLOCKED          = 0,
@@ -105,7 +105,8 @@ implementation {
  
   pending_t   tickMask_start[MAX_TIMER_COUNT];
   pending_t   tickMask_stop [MAX_TIMER_COUNT];
-   
+  pending_t   outgoing_edges;
+  
   // Bitmask specifying edges with pending send requests
   pending_t pending;
   
@@ -126,6 +127,7 @@ implementation {
     // Disassociate the problem    
     problem = (edge_t*)NULL;
     c_edge_cnt = c_maxmoteid = 0;
+    outgoing_edges = 0;
     
     // Clear configuration values
     memset(&config,0,sizeof(setup_t));
@@ -235,6 +237,7 @@ implementation {
     
     _ASSERT_( sbitmask > 0 )
     _ASSERT_( state == STATE_RUNNING || state == STATE_IDLE )
+    _ASSERT_( ((~outgoing_edges) & sbitmask) == 0 )
     
     atomic {
       // Check which edges need to be backlogged
@@ -301,7 +304,10 @@ implementation {
       // If the sender is not this node, continue
       if( edge->sender != TOS_NODE_ID )
         continue;
-
+  
+      // Set this bit because it is an outgoing edge from this mote
+      outgoing_edges |= 1<<idx;
+            
       // Set the pending bits if this node needs to send at start
       if ( edge->policy.start_trigger == SEND_ON_INIT ) {
         postNewTrigger( 1<<idx );
@@ -440,8 +446,11 @@ implementation {
       edge->nextmsgid = msg->msgid + 1;
 
       // Check whether we have to reply
-      if ( edge->reply_on != 0 ) {
-        postNewTrigger(edge->reply_on);
+      if ( (edge->reply_on & outgoing_edges) != 0 ) {
+        // in case of "reply-to broadcast message" policy, the reply_on bitmask could
+        // contain edges whose source is not this mote.
+        // that is why, a filter is applied (outgoing_edges).
+        postNewTrigger(edge->reply_on & outgoing_edges );
         post sendPending();
       }
     }
