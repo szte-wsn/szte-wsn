@@ -36,8 +36,6 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
-#define MAX_TIMER_COUNT 4
-
 #if MAX_EDGE_COUNT <= 8
   typedef uint8_t pending_t;
 #elif MAX_EDGE_COUNT <= 16
@@ -52,13 +50,15 @@
 typedef pending_t edgeaddr_t;
 
 enum {
+	MAX_TIMER_COUNT	= 4,
+	
   // Policy flags
   GLOBAL_USE_ACK           = 1<<0,
   GLOBAL_USE_BCAST         = 1<<1,
   GLOBAL_USE_LPL           = 1<<2,
   
   // Sending flags
-  SEND_NONE       = 0,
+  SEND_ON_REQ     = 0,
   SEND_ON_INIT    = 1,
   SEND_ON_TIMER   = 2,
 
@@ -89,8 +89,13 @@ typedef struct num_t {
 } num_t;
 
 // Base types for message counting / message sequence values
+#ifdef USE_32_BITS
+typedef uint32_t    seq_base_t;
+typedef nx_uint32_t nx_seq_base_t;
+#else
 typedef uint16_t    seq_base_t;
 typedef nx_uint16_t nx_seq_base_t;
+#endif
 
 typedef struct edge_t {
   uint16_t      sender;           // Sender end of the edge
