@@ -1,5 +1,5 @@
 /** 
- * Benchmark Database file
+ * User Defined Benchmark Database file
  * ------------------------------------------------------------------------
  * 
  * This is a user-modifiable file, keep it clean, and stay to the rules below.
@@ -48,47 +48,27 @@
  *                   (the edge ids count from zero in the current benchmark)
  *
  *
- *  For examples, see below.
+ *  For examples, see below, and do not hesitate to erase them to reduce memory overhead.
  */
 
+
 _BMARK_START_
-  { 1, 2,   NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
+  { 1, 2,   {TIMER(1),0}, { SEND_ON_TIMER,  STOP_ON_ACK, 0, 0, 0 }, NUM(2), REPLY_ON(1), START_MSG_ID },
+  { 2, 3,   NO_TIMER , { SEND_ON_REQ,  0, 0, 0, 0 }, NUM(1), REPLY_ON(2), START_MSG_ID },
+  { 3, 1,   NO_TIMER , { SEND_ON_REQ,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
 _BMARK_END_
 
 _BMARK_START_
-  { 1, 2  , NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID },
-  { 2, ALL, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID },
-  { 1, 3  , NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID },
-  { 2, ALL, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID },
-  { 3, 1  , NO_TIMER , { SEND_NONE   ,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
+  { 1, 2,   {TIMER(1),0}, { SEND_ON_TIMER, 0, NEED_ACK, 0, 0 }, NUM(2), REPLY_ON(2), START_MSG_ID },
+  { 3, 2,   {TIMER(2),TIMER(3)}, { SEND_ON_TIMER, STOP_ON_TIMER | STOP_ON_ACK, 0, 0, 0 }, NUM(1), REPLY_ON(2), START_MSG_ID },
+  { 2, ALL, NO_TIMER    , { SEND_ON_REQ,  0, 0, 0, 0 }, NUM(1), REPLY_ON(3), START_MSG_ID },
+  { 3, 1,   NO_TIMER    , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(4) , NO_REPLY, START_MSG_ID }
 _BMARK_END_
+
 
 _BMARK_START_
-  { 1, 2  , NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID },
-  { 2, ALL, NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, 0, 0, 0 }, NUM(4), NO_REPLY, START_MSG_ID },
-  { 3, 2  , NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, NEED_ACK, 0, 0 }, NUM(5), NO_REPLY, START_MSG_ID },
-  { 2, ALL, NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, NEED_ACK, 0, 0 }, NUM(6), NO_REPLY, START_MSG_ID }
+  { 1, 2,   {TIMER(1),0}, { SEND_ON_TIMER,  STOP_ON_ACK, NEED_ACK, 0, 0 }, NUM(2), REPLY_ON(1), START_MSG_ID },
+  { 2, 1,   NO_TIMER , { SEND_ON_REQ,  0, 0, 0, 0 }, NUM(2), NO_REPLY, START_MSG_ID }
 _BMARK_END_
 
-_BMARK_START_
-  { 1, 2  , NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID },
-  { 1, ALL, NO_TIMER , { SEND_ON_INIT,  0, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID },
-  { 3, 1  , NO_TIMER , { SEND_ON_INIT,  STOP_ON_ACK, 0, 0, 0 }, NUM(100), NO_REPLY, START_MSG_ID }
-_BMARK_END_
 
-_BMARK_START_
-  { 1, 2, {TIMER(1),0} , { SEND_ON_TIMER,  0, 0, 0, 0 }, NUM(1), NO_REPLY, START_MSG_ID }
-_BMARK_END_
-
-_BMARK_START_
-  { 1, 2, {TIMER(1),0} , { SEND_ON_TIMER,  STOP_ON_ACK, 0, 0, 0 }, NUM(10), NO_REPLY, START_MSG_ID }
-_BMARK_END_
-
-_BMARK_START_  
-  { 1, 2, {TIMER(1),TIMER(2)} , { SEND_ON_TIMER,  STOP_ON_TIMER, 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
-_BMARK_END_
-
-_BMARK_START_
-  { 1, 2, {TIMER(1), 0} , { SEND_ON_TIMER,  0, 0, 0, 0 }, NUM(3), NO_REPLY, START_MSG_ID },
-  { 2, 1, {0,TIMER(2)} , { SEND_ON_INIT,  STOP_ON_TIMER | STOP_ON_ACK , 0, 0, 0 }, NUM(INFINITE), NO_REPLY, START_MSG_ID }
-_BMARK_END_
