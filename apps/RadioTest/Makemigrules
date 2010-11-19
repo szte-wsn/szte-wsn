@@ -1,27 +1,28 @@
-BUILD_EXTRA_DEPS = CtrlMsgT.java DataMsgT.java SyncMsgT.java SetupMsgT.java StatT.java SetupT.java ProfileT.java
-CLEAN_EXTRA      = main.elf java/*.class java/*T.java
+BUILD_EXTRA_DEPS += java/CtrlMsgT.java java/DataMsgT.java java/SyncMsgT.java java/SetupMsgT.java java/StatT.java java/SetupT.java
+CLEAN_EXTRA      += main.elf java/*.class java/*T.java
 
-StatT.java: Internal.h
-	mig -target=$(PLATFORM) -java-classname=StatT java Internal.h stat_t -o java/$@
+java/StatT.java: Internal.h Makefile
+	mig -target=$(PLATFORM) $(CFLAGS) -java-classname=StatT java Internal.h stat_t -o $@
 
-SetupT.java: Internal.h
-	mig -target=$(PLATFORM) -java-classname=SetupT java Internal.h setup_t -o java/$@
+java/SetupT.java: Internal.h
+	mig -target=$(PLATFORM) -java-classname=SetupT java Internal.h setup_t -o $@
 
-CtrlMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=CtrlMsgT java Messages.h ctrlmsg_t -o java/$@
+java/CtrlMsgT.java: Messages.h
+	mig -target=$(PLATFORM) -java-classname=CtrlMsgT java Messages.h ctrlmsg_t -o $@
 	
-SyncMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=SyncMsgT java Messages.h syncmsg_t -o java/$@
+java/SyncMsgT.java: Messages.h
+	mig -target=$(PLATFORM) -java-classname=SyncMsgT java Messages.h syncmsg_t -o $@
 
-SetupMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=SetupMsgT java Messages.h setupmsg_t -o java/$@
+java/SetupMsgT.java: Messages.h
+	mig -target=$(PLATFORM) -java-classname=SetupMsgT java Messages.h setupmsg_t -o $@
 	
-DataMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=DataMsgT java Messages.h datamsg_t -o java/$@
+java/DataMsgT.java: Messages.h
+	mig -target=$(PLATFORM) -java-classname=DataMsgT java Messages.h datamsg_t -o $@
+	
+BUILD_EXTRA_DEPS += java/BenchmarkStatic.java
+CLEAN_EXTRA      += java/BenchmarkStatic.java
 
-ResponseMsgT.java: Messages.h
-	mig -target=$(PLATFORM) -java-classname=ResponseMsgT java Messages.h responsemsg_t -o java/$@
-
-ProfileT.java: Internal.h
-	mig -target=$(PLATFORM) -java-classname=ProfileT java Internal.h profile_t -o java/$@
-
+java/BenchmarkStatic.java: Internal.h Messages.h
+	ncg -target=$(PLATFORM) -o $@ -java-classname=BenchmarkStatic java Messages.h \
+	MAX_TIMER_COUNT SETUP_BASE CTRL_SETUP_SYN SYNC_SETUP_ACK CTRL_START CTRL_RESET \
+	CTRL_STAT_REQ DATA_STAT_OK CTRL_DBG_REQ DATA_DBG_OK
