@@ -47,7 +47,7 @@
 
 #define ALL             AM_BROADCAST_ADDR
 
-#define REPLY_EDGE(POS) (1<<(POS))
+#define REPLY_ON(POS) (1<<(POS))
 #define NUM(QTY) {(QTY), (QTY)}
 
 #define NO_REPLY      0
@@ -58,8 +58,13 @@
 
 edge_t problemSet[] = {
 
+#ifndef EXCLUDE_STANDARD
+#include "StandardBenchmarks.h"
+#endif
 
-#include "DefinedBenchmarks.h"
+#ifndef EXCLUDE_USERDEFINED
+#include "UserdefinedBenchmarks.h"
+#endif
 
   PROBLEMSET_END
 }; // problemSet END
