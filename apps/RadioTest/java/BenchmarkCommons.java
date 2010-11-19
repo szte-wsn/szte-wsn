@@ -3,6 +3,16 @@ import java.util.Vector;
 
 public class BenchmarkCommons {
   
+  public static String xmlHeader() {
+    return "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>" +
+           "<?xml-stylesheet type=\"text/xsl\" href=\"benchmark.xsl\"?>" +
+           "<resultset>";
+  }
+  
+  public static String xmlFooter() {
+    return "</resultset>";
+  }
+  
   public static StatT getStatFromMessage(final DataMsgT rmsg) {
     StatT s = new StatT();
     s.set_triggerCount(rmsg.get_payload_stat_triggerCount());
@@ -90,9 +100,10 @@ public class BenchmarkCommons {
     out += "  Timers: \t[";
     byte ios[] = config.get_timers_isoneshot();
     long delay[] = config.get_timers_delay();
-    long period[] = config.get_timers_period_msec();        
+    long period[] = config.get_timers_period_msec(); 
+               
     for (int i=0; i< BenchmarkStatic.MAX_TIMER_COUNT; ++i) {
-      out += (ios[0] == 0 )? "1shot " : "period ";
+      out += (ios[i] == 1 ) ? "1shot " : "period ";
       out += "max(" + delay[i] + "ms) ";
       out += period[i] + "ms";
       if (i != BenchmarkStatic.MAX_TIMER_COUNT-1)
@@ -118,54 +129,51 @@ public class BenchmarkCommons {
       out += "<timer idx=\"" + i + "\" ";
       out += (ios[0] == 0 )? "oneshot=\"yes\" " : "oneshot=\"no\" ";
       out += "delay=\"" + delay[i] + "\" ";
-      out += "period=\"" + period[i] + "\">";
+      out += "period=\"" + period[i] + "\"/>";
     }
     out += "</configuration>";
     return out;
   }
 
   public static String statsAsString(final Vector<StatT> stats) {
-    String ret = "";
     String newline = System.getProperty("line.separator");
+    String hdr = "  Stats:\t[ Tri Blg Res | send Succ Fail | sDone Succ Fail | Ack NAck | Recv  Exp Wrng Dupl Frwd Miss | Rem ]";
+   
+   	String ret = "";
     for ( int i = 0; i< stats.size(); ++i ) {
       StatT s = stats.get(i);
      
-      ret += "  Stat(" + i + "):\t";
-
-      ret += "[ " + s.get_triggerCount();
-      ret += " " + s.get_backlogCount();
-      ret += " " + s.get_resendCount();
-
-      ret += " | " + s.get_sendCount();
-      ret += " " + s.get_sendSuccessCount();
-      ret += " " + s.get_sendFailCount();
-
-      ret += " | " + s.get_sendDoneCount();
-      ret += " " + s.get_sendDoneSuccessCount();
-      ret += " " + s.get_sendDoneFailCount();
-      
-      ret += " | " + s.get_wasAckedCount();
-      ret += " " + s.get_notAckedCount();
-  
-      ret += " | " + s.get_receiveCount();
-      ret += " " + s.get_expectedCount();
-      ret += " " + s.get_wrongCount();
-      ret += " " + s.get_duplicateCount();
-      ret += " " + s.get_forwardCount();
-      ret += " " + s.get_missedCount();
-
-      ret += " | " + s.get_remainedCount();
-      ret += " ]" + newline;
-      
+     	String str = String.format("  Stats(%1d):\t[ %2$3d %3$3d %4$3d | %5$4d %6$4d %7$4d | %8$5d %9$4d %10$4d | %11$3d %12$4d | %13$4d %14$4d %15$4d %16$4d %17$4d %18$4d | %19$3d ]",
+     		i,
+     		s.get_triggerCount(),
+     		s.get_backlogCount(),
+	     	s.get_resendCount(),
+	     	s.get_sendCount(),
+	     	s.get_sendSuccessCount(),
+	     	s.get_sendFailCount(),
+     		s.get_sendDoneCount(),
+     		s.get_sendDoneSuccessCount(),
+     		s.get_sendDoneFailCount(),
+     		s.get_wasAckedCount(),
+     		s.get_notAckedCount(),
+     		s.get_receiveCount(),
+      	s.get_expectedCount(),
+      	s.get_wrongCount(),
+      	s.get_duplicateCount(),
+      	s.get_forwardCount(),
+      	s.get_missedCount(),
+      	s.get_remainedCount()
+     	);
+      ret += str + newline;
     }
-    return ret;
+    return hdr + newline + ret;
   }
 
   public static String statsAsXml(final Vector<StatT> stats) {
     String ret = "<statlist>";
     for ( int i = 0; i< stats.size(); ++i ) {
       StatT s = stats.get(i);
-      ret = "<stat idx=\"" + i + "\">";
+      ret += "<stat idx=\"" + i + "\">";
 
       ret += "<TC>" + s.get_triggerCount() + "</TC>";
       ret += "<BC>" + s.get_backlogCount() + "</BC>";
@@ -209,6 +217,7 @@ public class BenchmarkCommons {
     for( int i = 0; i < debuglines.length; ++i ){
       ret +=  "<debug idx=\"" + (i+1) + "\">" + debuglines[i] + "</debug>";
     }
+    ret += "</debuglist>";
     return ret;
   }
   
