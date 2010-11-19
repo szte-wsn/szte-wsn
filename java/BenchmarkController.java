@@ -39,6 +39,8 @@ import java.util.Vector;
 import net.tinyos.message.*;
 import net.tinyos.util.*;
 import org.apache.commons.cli.*;
+import java.util.Calendar;
+
 
 public class BenchmarkController implements MessageListener {
 	
@@ -267,19 +269,20 @@ public class BenchmarkController implements MessageListener {
     lock.unlock();
 	}
 
-  public void printResults(boolean asXml) {
+  public void printResults(PrintStream outstream, boolean asXml) {
     if ( asXml ) {
-      
-      ostream.println("<testresult>");
-      ostream.println(BenchmarkCommons.setupAsXml(config));
-      ostream.println(BenchmarkCommons.statsAsXml(stats));
-      ostream.println(BenchmarkCommons.debugAsXml(debuglines));
-      ostream.println("</testresult>");
+      Calendar calendar = Calendar.getInstance();
+
+      outstream.println("<testresult date=\"" + calendar.getTime().toString() + "\">");
+      outstream.println(BenchmarkCommons.setupAsXml(config));
+      outstream.println(BenchmarkCommons.statsAsXml(stats));
+      outstream.println(BenchmarkCommons.debugAsXml(debuglines));
+      outstream.println("</testresult>");
       
     } else {
     
-      ostream.println(BenchmarkCommons.statsAsString(stats));
-      ostream.println(BenchmarkCommons.debugAsString(debuglines));
+      outstream.println(BenchmarkCommons.statsAsString(stats));
+      outstream.println(BenchmarkCommons.debugAsString(debuglines));
     }
   }
 
