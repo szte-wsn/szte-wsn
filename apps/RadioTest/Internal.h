@@ -141,7 +141,7 @@ typedef nx_struct profile_t {
 } profile_t;
 
 typedef nx_struct timersetup_t {
-  nx_bool       isoneshot;
+  nx_uint8_t    isoneshot;
   nx_uint32_t   delay;
   nx_uint32_t   period_msec;
 } timersetup_t;
