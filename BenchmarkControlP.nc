@@ -84,6 +84,7 @@ implementation {
 
   task void sendData() {
     datamsg_t* msg = (datamsg_t*)(call Packet.getPayload(&bpkt,sizeof(datamsg_t)));
+    call Packet.clear(&bpkt);
     if ( resp_request == CTRL_STAT_REQ && core_finished ) {
 
       msg->type = DATA_STAT_OK;
@@ -102,7 +103,8 @@ implementation {
 
   task void sendSync() {
     syncmsg_t* msg = (syncmsg_t*)(call Packet.getPayload(&bpkt,sizeof(syncmsg_t)));
-
+    call Packet.clear(&bpkt);
+    
     // RESPONSE the setup acknowledgement if applicable
     if ( resp_request == CTRL_SETUP_SYN && core_configured ) {
       msg->type = SYNC_SETUP_ACK;
