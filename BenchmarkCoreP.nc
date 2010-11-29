@@ -65,7 +65,7 @@ module BenchmarkCoreP @safe() {
     interface Packet;
     interface PacketAcknowledgements as Ack;
     
-    interface LowPowerListening;
+    interface MACInterface;
     interface Leds;
     
     interface Random;
@@ -103,6 +103,7 @@ implementation {
   
   stat_t      stats[MAX_EDGE_COUNT];
  
+  // pre-computed values for faster operation
   pending_t   tickMask_start[MAX_TIMER_COUNT];
   pending_t   tickMask_stop [MAX_TIMER_COUNT];
   pending_t   outgoing_edges;
@@ -146,35 +147,30 @@ implementation {
     SET_STATE( STATE_IDLE )
   }
   
+  /** START THE NEEDED TRIGGERING TIMERS **/
   void startTimers() {
     uint8_t i;
+    uint32_t now,delay;
+    
     for(i = 0; i< MAX_TIMER_COUNT; ++i) {
-      uint32_t now, delay;
-      
     	// If the current timer is unused, do not start it
     	if ( tickMask_start[i] == 0 && tickMask_stop[i] == 0 )
     		continue;
    		
       now = call TriggerTimer.getNow[0]();
-      delay = ( config.timers[i].delay != 0 ) 
-              ? (call Random.rand32() % config.timers[i].delay)
-              : 0;
+      delay = ( config.timers[i].delay != 0 ) ? (call Random.rand32() % config.timers[i].delay) : 0;
       if ( config.timers[i].isoneshot )
-        call TriggerTimer.startOneShotAt[i](
-          now + delay,
-          config.timers[i].period_msec);
+        call TriggerTimer.startOneShotAt[i]( now + delay, config.timers[i].period_msec);
       else
-        call TriggerTimer.startPeriodicAt[i](
-          now + delay,
-          config.timers[i].period_msec);
+        call TriggerTimer.startPeriodicAt[i](now + delay, config.timers[i].period_msec);
     }
   }
   
+  /** STOP THE TRIGGERING TIMERS **/
   void stopTimers() {
     uint8_t i;
-    for(i = 0; i< MAX_TIMER_COUNT; ++i) {
+    for(i = 0; i< MAX_TIMER_COUNT; ++i)
       call TriggerTimer.stop[i]();
-    }
   }
     
   /** INITIALIZE THE COMPONENT **/
@@ -188,7 +184,9 @@ implementation {
   command stat_t* BenchmarkCore.getStat(uint16_t idx) { 
     _ASSERT_( idx < MAX_EDGE_COUNT )
     _ASSERT_( state == STATE_FINISHED )
-    return ( idx < c_edge_cnt ) ? stats + idx : NULL;
+    _ASSERT_(idx < c_edge_cnt )
+    
+    return stats + idx;
   }
   
   /** REQUEST DEBUG INFORMATION **/
@@ -202,24 +200,29 @@ implementation {
   
   /** REQUEST EDGE COUNT **/
   command uint8_t BenchmarkCore.getEdgeCount() {
+    _ASSERT_( state >= STATE_CONFIGURED )
     return c_edge_cnt;
   }
   
   /** REQUEST MOTE COUNT **/
   command uint8_t BenchmarkCore.getMaxMoteId() {
+    _ASSERT_( state >= STATE_CONFIGURED )
     return c_maxmoteid;
   }  
   
   /** RESETS THE CORE **/
   command void BenchmarkCore.reset() {
-    call TestTimer.stop();
-    stopTimers();
+    call Test.stop();
     cleanstate();
     signal BenchmarkCore.resetDone();
   }
   
   /** START THE REAL BENCHMARK */
   void startBenchmark() {
+    // setup the applied MAC protocol
+    if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
+      call MACInterface.enter(&pkt,(uint16_t*)config.macparams);
+      
     // If this node sends initial message(s)
     if ( pending )
       post sendPending();
@@ -264,20 +267,18 @@ implementation {
   
   /** SETUP THE BENCHMARK **/
   command void BenchmarkCore.setup(setup_t conf) {
-    uint8_t   idx, k, maxmote;
+    uint8_t   idx, k;
     
-    _ASSERT_( state == STATE_INVALID || state == STATE_IDLE || state == STATE_CONFIGURED )
+    _ASSERT_( state == STATE_IDLE || state == STATE_CONFIGURED )
     _ASSERT_( conf.runtime_msec > 0 );
        
     // Do nothing if already configured or running or data is available
-    if ( state >= STATE_CONFIGURED )
+    if ( state == STATE_CONFIGURED )
       return;
     
     // Get clean variables and save the configuration
-    cleanstate();
     config = conf;
     
-    problem = problemSet;
     // Setup the problem
     for( idx = 0, k = 0; problemSet[idx].sender != 0 && k < config.problem_idx; ++idx ) {
       if ( problemSet[idx].sender == INVALID_SENDER ) 
@@ -285,7 +286,7 @@ implementation {
     }
     problem = problemSet + idx;
     
-    maxmote = 1;
+    c_maxmoteid = 1;
     // Initialize the edges
     for( idx = 0; problem[idx].sender != INVALID_SENDER; ++idx )
     {
@@ -296,10 +297,10 @@ implementation {
       edge->nextmsgid = START_MSG_ID;
             
       // Count the maximal mote id
-      if ( edge->sender > maxmote )
-        maxmote = edge->sender;
-      if ( edge->receiver > maxmote && edge->receiver != ALL )
-        maxmote = edge->receiver;
+      if ( edge->sender > c_maxmoteid )
+        c_maxmoteid = edge->sender;
+      if ( edge->receiver > c_maxmoteid && edge->receiver != ALL )
+        c_maxmoteid = edge->receiver;
             
       // If the sender is not this node, continue
       if( edge->sender != TOS_NODE_ID )
@@ -322,7 +323,6 @@ implementation {
         tickMask_stop[edge->timers.stop] |= 1 << idx;
     }
     c_edge_cnt = idx;
-    c_maxmoteid = maxmote;
     
     SET_STATE( STATE_CONFIGURED )
     signal BenchmarkCore.setupDone();
@@ -345,17 +345,26 @@ implementation {
     
   /** STOP A TEST */
   command error_t Test.stop() {
+    uint8_t i = 0;
     _ASSERT_( state == STATE_PRE_RUN || state == STATE_RUNNING || state == STATE_POST_RUN )
     
     call TestTimer.stop();
     SET_STATE( STATE_FINISHED );
     stopTimers();
-   
+    if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
+      call MACInterface.exit(&pkt,(uint16_t*)config.macparams);
+    
+    // compute the remained statistic
+    for ( i = 0; pending; ++i, pending >>= 1) {
+      if ( pending & 0x1 )
+        ++(stats[i].remainedCount);
+    }
+    
     signal BenchmarkCore.finished();
+    return SUCCESS;
   }
     
   event void TestTimer.fired() {
-    uint8_t i = 0;
     switch(state) {
     
       case STATE_PRE_RUN:
@@ -364,10 +373,8 @@ implementation {
         break;
         
       case STATE_RUNNING:
-        
         // Stop the trigger timers
         stopTimers();
-        
         // check if we need a post-run state
         if ( config.post_run_msec > 0 ) {
           SET_STATE( STATE_POST_RUN )
@@ -377,13 +384,7 @@ implementation {
         // break; missing: fallback to STATE_POST_RUN !
  
       case STATE_POST_RUN:
-        SET_STATE( STATE_FINISHED )
-        // compute the remained statistic
-        for ( i = 0; pending; ++i, pending >>= 1) {
-          if ( pending & 0x1 )
-            ++(stats[i].remainedCount);
-        }
-        signal BenchmarkCore.finished();
+        _ASSERT_ ( SUCCESS == call Test.stop() )
         break;
         
       default:
@@ -404,14 +405,14 @@ implementation {
       uint8_t i = 0;
       pending_t temp = tickMask_stop[id];
       for ( i = 0; temp; ++i, temp >>= 1) {
-        if ( (temp & 0x1) != 0 && 
-             (problem[i].policy.stop_trigger & STOP_ON_TIMER) != 0 ) {
-            // This works for INFINITE and also for non-INF edges
-            problem[i].policy.inf_loop_on = FALSE;
-            problem[i].nums.left_num = problem[i].nums.send_num;
+        if ( (temp & 0x1) != 0 &&  (problem[i].policy.stop_trigger & STOP_ON_TIMER) != 0 ) {
+          // This works for INFINITE and also for non-INF edges
+          problem[i].policy.inf_loop_on = FALSE;
+          problem[i].nums.left_num = problem[i].nums.send_num;
         }
       }
     }
+    
   }
   
   event message_t* RxTest.receive(message_t* bufPtr, void* payload, uint8_t len) {
@@ -468,6 +469,9 @@ implementation {
 
     _ASSERT_( sendlock == LOCKED )
     _ASSERT_( state == STATE_RUNNING || state == STATE_POST_RUN || state == STATE_FINISHED )
+    
+    if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
+      call MACInterface.afterSend(bufPtr,(uint16_t*)config.macparams);
     
     if ( state == STATE_RUNNING || state == STATE_POST_RUN ) {
 
@@ -569,7 +573,6 @@ implementation {
       _ASSERT_( problem[eidx].sender == TOS_NODE_ID )
         
       // Compose the new message
-      call Packet.clear(&pkt);
       t_msg = (testmsg_t*)(call Packet.getPayload(&pkt,sizeof(testmsg_t)));
       t_msg->edgeid = eidx;
       t_msg->msgid = problem[eidx].nextmsgid;
@@ -583,6 +586,11 @@ implementation {
       } else {
         call Ack.noAck(&pkt);
       }
+      
+      // MAC specific settings
+      if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
+        call MACInterface.beforeSend(&pkt,(uint16_t*)config.macparams);
+   
       // Send out
       switch ( call TxTest.send( address, &pkt, sizeof(testmsg_t)) ) {
         case SUCCESS :
@@ -595,7 +603,7 @@ implementation {
           post sendPending();
           break;
         default :
-          _ASSERT_( 0 );
+          _ASSERT_( 0 )
           break;
       }
       ++(stats[eidx].sendCount);

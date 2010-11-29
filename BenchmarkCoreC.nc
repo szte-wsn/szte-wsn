@@ -53,8 +53,8 @@ implementation {
   Core.RxTest -> RxTest;
   Core.TxTest -> TxTest;
   
-  components ActiveMessageC;
-  Core.LowPowerListening -> ActiveMessageC; 
+  components ActiveMessageC, MACInterfaceC;
+  Core.MACInterface -> MACInterfaceC;
   Core.Packet -> ActiveMessageC;
   Core.Ack -> ActiveMessageC;
   

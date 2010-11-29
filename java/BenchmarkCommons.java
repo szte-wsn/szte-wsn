@@ -82,6 +82,8 @@ public class BenchmarkCommons {
     smsg.set_config_timers_delay(config.get_timers_delay());
     smsg.set_config_timers_period_msec(config.get_timers_period_msec());
     
+    smsg.set_config_macparams(config.get_macparams());
+    
     return smsg;    
   }
   
@@ -98,7 +100,7 @@ public class BenchmarkCommons {
     out += newline;
     
     out += "  Timers: \t[";
-    byte ios[] = config.get_timers_isoneshot();
+    short ios[] = config.get_timers_isoneshot();
     long delay[] = config.get_timers_delay();
     long period[] = config.get_timers_period_msec(); 
                
@@ -122,7 +124,7 @@ public class BenchmarkCommons {
     out +="    <ack>" + (((config.get_flags() & 0x1) > 0 )? "On" : "Off") + "</ack>";
     out +="    <bcast>" + (((config.get_flags() & 0x2) > 0 ) ? "On" : "Off") + "</bcast>";
   
-    byte ios[] = config.get_timers_isoneshot();
+    short ios[] = config.get_timers_isoneshot();
     long delay[] = config.get_timers_delay();
     long period[] = config.get_timers_period_msec();        
     for (int i=0; i< BenchmarkStatic.MAX_TIMER_COUNT; ++i) {
