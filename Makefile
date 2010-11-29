@@ -10,7 +10,7 @@ USE_CC2420X_EXPERIMENTAL=no
 CFLAGS += -DMAX_EDGE_COUNT=8
 
 # exclude the standard benchmarks from the problemset
-CFLAGS += -DEXCLUDE_STANDARD
+#CFLAGS += -DEXCLUDE_STANDARD
 
 # exclude the user defined benchmarks from the problemset
 #CFLAGS += -DEXCLUDE_USERDEFINED
