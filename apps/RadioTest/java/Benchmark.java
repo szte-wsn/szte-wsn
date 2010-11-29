@@ -91,6 +91,7 @@ public class Benchmark {
     opt3.addOption(opt.getOption("ack"));
     opt3.addOption(opt.getOption("bcast"));
     opt3.addOption(opt.getOption("xml"));
+    opt3.addOption(opt.getOption("mac"));
     System.out.println();
     System.out.println("5. Running a specific benchmark with command-line arguments");
     System.out.println("--------------------------------------------------------------------");
@@ -155,6 +156,11 @@ public class Benchmark {
                                 .hasArg()
                                 .withDescription( "Produce xml output" )
                                 .create( "xml" );                          
+
+     Option mac = OptionBuilder.withArgName( "MAC params" )
+                                .hasArg()
+                                .withDescription( BenchmarkStatic.MAX_MAC_PARAMS + " comma separated, 32bit parameters for MAC protocol")
+                                .create( "mac" );
                           
       opt.addOption("h", "help", false, "Print help for this application");
       opt.addOption("r", "reset", false, "Reset all motes");
@@ -164,6 +170,7 @@ public class Benchmark {
       opt.addOption(runtime);
       opt.addOption(lastchance);
       opt.addOption(xml);
+      opt.addOption(mac);
         
       opt.addOption(trtimers);
       opt.addOption("ack", false, "Force acknowledgements. [default : false]");
@@ -221,21 +228,9 @@ public class Benchmark {
         if ( lchance < 0 )
           throw new MissingOptionException("Invalid last chance time specified!");        
 
-        short flags = 0;
-        if ( cl.hasOption("ack") )
-          flags |= 0x1; 
-        if ( cl.hasOption("bcast") )
-          flags |= 0x2;
-  
-        SetupT st = new SetupT();
-        st.set_problem_idx(problemidx);
-        st.set_pre_run_msec(startdelay);
-        st.set_runtime_msec(runtimemsec);
-        st.set_post_run_msec(lchance);
-        st.set_flags(flags);
-        
+ 
         // Trigger timer initialization values
-        byte ios[] =    new byte[BenchmarkStatic.MAX_TIMER_COUNT];
+        short ios[] =   new short[BenchmarkStatic.MAX_TIMER_COUNT];
         long delay[] =  new long[BenchmarkStatic.MAX_TIMER_COUNT];
         long period[] = new long[BenchmarkStatic.MAX_TIMER_COUNT];
         
@@ -275,10 +270,48 @@ public class Benchmark {
           
         }
         
+        short flags = 0;
+        if ( cl.hasOption("ack") )
+          flags |= BenchmarkStatic.GLOBAL_USE_ACK; 
+        if ( cl.hasOption("bcast") )
+          flags |= BenchmarkStatic.GLOBAL_USE_BCAST;
+        if ( cl.hasOption("mac") )
+          flags |= BenchmarkStatic.GLOBAL_USE_EXTERNAL_MAC;
+        
+        int macparams[] = new int[BenchmarkStatic.MAX_MAC_PARAMS];
+        for( int i = 0; i < BenchmarkStatic.MAX_MAC_PARAMS; ++i ) {
+          macparams[i] = 0;
+        }
+        
+        if ( cl.hasOption("mac") ) {
+          // Create pattern string
+          String patternstr="";
+          for (int i =0; i< BenchmarkStatic.MAX_MAC_PARAMS-1; ++i)
+            patternstr += "(\\d+),";
+          patternstr += "(\\d+)";
+
+          // Create pattern
+          Pattern pattern = Pattern.compile(patternstr);
+          Matcher matcher = pattern.matcher(cl.getOptionValue("mac"));
+          if ( matcher.find() ) {
+            for( int i = 0; i < BenchmarkStatic.MAX_MAC_PARAMS; ++i ) {
+              macparams[i] = Integer.parseInt(matcher.group(i+1));
+            }
+          } else
+              throw new MissingOptionException("Invalid MAC params, see help!");
+        }
+        
+        SetupT st = new SetupT();
+        st.set_problem_idx(problemidx);
+        st.set_pre_run_msec(startdelay);
+        st.set_runtime_msec(runtimemsec);
+        st.set_post_run_msec(lchance);
+        st.set_flags(flags);
         st.set_timers_isoneshot(ios);
         st.set_timers_delay(delay);
         st.set_timers_period_msec(period);
-
+        st.set_macparams(macparams);
+        
         // Reset the motes
         BenchmarkController rbr = new BenchmarkController();
         
