@@ -5,8 +5,8 @@ USE_CC2420X_EXPERIMENTAL=no
 
 # use low power listening
 PFLAGS += -I./mac
-PFLAGS += -I./mac/lpl
-CFLAGS += -DLOW_POWER_LISTENING
+PFLAGS += -I./mac/null
+#CFLAGS += -DLOW_POWER_LISTENING
 
 # use 32-bit length statistics ? (default is 16 bits)
 #CFLAGS += -DUSE_32_BITS
@@ -28,9 +28,9 @@ endif
 
 #CFLAGS += -I$(SZTETOSDIR)/lib/CodeProfile
 
-include Makemigrules
+include Makefile.Mig
 include $(MAKERULES)
-include $(SZTETOSROOT)/support/make/Makeplatformopts
+include Makefile.Platforms
 
 ifdef RADIO_CC2420
 	ifeq ($(USE_CC2420X_EXPERIMENTAL),yes)
