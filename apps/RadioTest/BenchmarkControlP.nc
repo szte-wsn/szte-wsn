@@ -47,6 +47,9 @@ module BenchmarkControlP @safe() {
     interface AMSend  as TxData;    
     
     interface SplitControl as AMControl;
+    #ifdef TOSSIM
+    interface SplitControl as SerialAMControl;
+    #endif
     
     interface BenchmarkCore;
     interface StdControl as CoreControl;
@@ -68,6 +71,17 @@ implementation {
   event void Boot.booted() {
     call AMControl.start();
   }
+
+  #ifdef TOSSIM
+  event void SerialAMControl.startDone(error_t error) {
+    if (error != SUCCESS)
+      call SerialAMControl.start();
+  }
+
+  event void SerialAMControl.stopDone(error_t error) {
+    call SerialAMControl.start();
+  }
+  #endif
 
   event void AMControl.startDone(error_t error) {
     if (error != SUCCESS)

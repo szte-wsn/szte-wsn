@@ -47,13 +47,24 @@ configuration BenchmarkControlC {
 
 implementation {
   components BenchmarkControlP as Comm;
-  
+
   // Radiocommunication
-  components new AMReceiverC(AM_CTRLMSG_T)    	    as RxCtrl;
-  components new AMReceiverC(AM_SETUPMSG_T)    	    as RxSetup;
+  #ifdef TOSSIM
+    components new SerialAMReceiverC(AM_CTRLMSG_T)    	as RxCtrl;
+    components new SerialAMReceiverC(AM_SETUPMSG_T)    	as RxSetup;
   
-  components new DirectAMSenderC(AM_SYNCMSG_T)      as TxSync;
-  components new DirectAMSenderC(AM_DATAMSG_T)      as TxData;
+    components new SerialAMSenderC(AM_SYNCMSG_T)        as TxSync;
+    components new SerialAMSenderC(AM_DATAMSG_T)        as TxData;
+    
+    components SerialActiveMessageC;
+    Comm.SerialAMControl -> SerialActiveMessageC;
+  #else
+    components new AMReceiverC(AM_CTRLMSG_T)    	      as RxCtrl;
+    components new AMReceiverC(AM_SETUPMSG_T)    	      as RxSetup;
+  
+    components new DirectAMSenderC(AM_SYNCMSG_T)        as TxSync;
+    components new DirectAMSenderC(AM_DATAMSG_T)        as TxData;
+  #endif
   
   components LedsC;
   Comm.Leds -> LedsC;
@@ -68,8 +79,9 @@ implementation {
   Comm.BenchmarkCore = BenchmarkCore;
   Comm.CoreControl = CoreControl;
   Comm.CoreInit = CoreInit;
-  
-  components ActiveMessageC;
+
+    
+  components ActiveMessageC; 
   Comm.AMControl -> ActiveMessageC;
   Comm.Packet -> ActiveMessageC;
   
