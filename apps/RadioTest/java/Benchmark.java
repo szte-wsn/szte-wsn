@@ -54,7 +54,7 @@ public class Benchmark {
     System.out.println();
     System.out.println("1. Print help information.");
     System.out.println("--------------------------------------------------------------------");
-    f.printHelp("Benchmark", opt0, true);
+    f.printHelp(150, "Benchmark", "", opt0, "", true);
 
     // Batch - usage
     Options opt1 = new Options();
@@ -63,7 +63,7 @@ public class Benchmark {
     System.out.println();
     System.out.println("2. Running benchmarks with pre-defined configurations in batch mode.");
     System.out.println("--------------------------------------------------------------------");
-    f.printHelp("Benchmark", opt1, true);
+    f.printHelp(150, "Benchmark", "", opt1, "", true);
     
     // Reset - usage
     Options opt2 = new Options();
@@ -71,15 +71,16 @@ public class Benchmark {
     System.out.println();
     System.out.println("3. Reset all motes.");
     System.out.println("--------------------------------------------------------------------");
-    f.printHelp("Benchmark", opt2, true);
+    f.printHelp(150, "Benchmark", "", opt2, "", true);
     
     // Download - usage
     Options opt4 = new Options();
     opt4.addOption(opt.getOption("dload"));
+    opt4.addOption(opt.getOption("mc"));
     System.out.println();
-    System.out.println("4. Only download data from the motes.");
+    System.out.println("4. Only download data from the motes (if data available).");
     System.out.println("--------------------------------------------------------------------");
-    f.printHelp("Benchmark", opt4, true);
+    f.printHelp(150, "Benchmark", "", opt4, "", true);
     
     // Command-line usage
     Options opt3 = new Options();
@@ -91,7 +92,8 @@ public class Benchmark {
     opt3.addOption(opt.getOption("ack"));
     opt3.addOption(opt.getOption("bcast"));
     opt3.addOption(opt.getOption("xml"));
-    opt3.addOption(opt.getOption("mac"));
+    opt3.addOption(opt.getOption("lpl"));
+    opt3.addOption(opt.getOption("mc"));
     System.out.println();
     System.out.println("5. Running a specific benchmark with command-line arguments");
     System.out.println("--------------------------------------------------------------------");
@@ -157,10 +159,16 @@ public class Benchmark {
                                 .withDescription( "Produce xml output" )
                                 .create( "xml" );                          
 
-     Option mac = OptionBuilder.withArgName( "MAC params" )
+      Option lpl = OptionBuilder.withArgName( "MAC param" )
                                 .hasArg()
-                                .withDescription( BenchmarkStatic.MAX_MAC_PARAMS + " comma separated, 32bit parameters for MAC protocol")
-                                .create( "mac" );
+                                .withDescription( "Wakeup interval for LPL/LPP")
+                                .create( "lpl" );
+                                
+      Option mcount = OptionBuilder.withArgName( "number" )
+                                .hasArg()
+                                .withDescription( "How many motes are in the network.")
+                                .withLongOpt("motecount")
+                                .create( "mc" );
                           
       opt.addOption("h", "help", false, "Print help for this application");
       opt.addOption("r", "reset", false, "Reset all motes");
@@ -170,7 +178,8 @@ public class Benchmark {
       opt.addOption(runtime);
       opt.addOption(lastchance);
       opt.addOption(xml);
-      opt.addOption(mac);
+      opt.addOption(lpl);
+      opt.addOption(mcount);
         
       opt.addOption(trtimers);
       opt.addOption("ack", false, "Force acknowledgements. [default : false]");
@@ -188,12 +197,18 @@ public class Benchmark {
       } else if ( cl. hasOption('r') ) {
       
         // Reset the motes
-        BenchmarkController rbr = new BenchmarkController();
+        BenchmarkController rbr = new BenchmarkController((short)0);
         rbr.reset();
       } else if ( cl.hasOption("dload") ) {
       
+        int motecount = cl.hasOption("mc") 
+                                ? Integer.parseInt(cl.getOptionValue("mc")) 
+                                : 1;
+        if ( motecount < 1 )
+          throw new MissingOptionException("Invalid number of motes specified!");
+      
         // Download the data
-        BenchmarkController rbr = new BenchmarkController();
+        BenchmarkController rbr = new BenchmarkController(motecount);
         if ( rbr.sync() && rbr.download() )
             rbr.printResults(System.out,false);
 
@@ -228,6 +243,17 @@ public class Benchmark {
         if ( lchance < 0 )
           throw new MissingOptionException("Invalid last chance time specified!");        
 
+        int lplwakeup = cl.hasOption("lpl") 
+                                ? Integer.parseInt(cl.getOptionValue("lpl")) 
+                                : 0;
+        if ( lplwakeup < 0 )
+          throw new MissingOptionException("Invalid wakeup interval specified!");
+ 
+        int motecount = cl.hasOption("mc") 
+                                ? Integer.parseInt(cl.getOptionValue("mc")) 
+                                : 1;
+        if ( motecount < 1 )
+          throw new MissingOptionException("Invalid number of motes specified!");
  
         // Trigger timer initialization values
         short ios[] =   new short[BenchmarkStatic.MAX_TIMER_COUNT];
@@ -275,32 +301,10 @@ public class Benchmark {
           flags |= BenchmarkStatic.GLOBAL_USE_ACK; 
         if ( cl.hasOption("bcast") )
           flags |= BenchmarkStatic.GLOBAL_USE_BCAST;
-        if ( cl.hasOption("mac") )
+        if ( cl.hasOption("lpl") )
           flags |= BenchmarkStatic.GLOBAL_USE_EXTERNAL_MAC;
         
-        int macparams[] = new int[BenchmarkStatic.MAX_MAC_PARAMS];
-        for( int i = 0; i < BenchmarkStatic.MAX_MAC_PARAMS; ++i ) {
-          macparams[i] = 0;
-        }
-        
-        if ( cl.hasOption("mac") ) {
-          // Create pattern string
-          String patternstr="";
-          for (int i =0; i< BenchmarkStatic.MAX_MAC_PARAMS-1; ++i)
-            patternstr += "(\\d+),";
-          patternstr += "(\\d+)";
-
-          // Create pattern
-          Pattern pattern = Pattern.compile(patternstr);
-          Matcher matcher = pattern.matcher(cl.getOptionValue("mac"));
-          if ( matcher.find() ) {
-            for( int i = 0; i < BenchmarkStatic.MAX_MAC_PARAMS; ++i ) {
-              macparams[i] = Integer.parseInt(matcher.group(i+1));
-            }
-          } else
-              throw new MissingOptionException("Invalid MAC params, see help!");
-        }
-        
+                            
         SetupT st = new SetupT();
         st.set_problem_idx(problemidx);
         st.set_pre_run_msec(startdelay);
@@ -310,10 +314,10 @@ public class Benchmark {
         st.set_timers_isoneshot(ios);
         st.set_timers_delay(delay);
         st.set_timers_period_msec(period);
-        st.set_macparams(macparams);
+        st.set_lplwakeup(lplwakeup);
         
         // Reset the motes
-        BenchmarkController rbr = new BenchmarkController();
+        BenchmarkController rbr = new BenchmarkController(motecount);
         
         PrintStream ps = cl.hasOption("xml") ? new PrintStream(cl.getOptionValue("xml")) : System.out;
         
@@ -331,7 +335,7 @@ public class Benchmark {
         } 
       
       } else {
-        throw new MissingOptionException("Invalid program arguments, see help!");
+        throw new MissingOptionException("Invalid program arguments, use --help for help!");
       }
     } catch (Exception e) {
       System.err.println();
