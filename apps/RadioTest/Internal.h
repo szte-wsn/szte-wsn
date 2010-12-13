@@ -51,7 +51,6 @@ typedef pending_t edgeaddr_t;
 
 enum {
 	MAX_TIMER_COUNT	= 4,
-	MAX_MAC_PARAMS = 4,
 	
   // Policy flags
   GLOBAL_USE_ACK           = 1<<0,
@@ -157,7 +156,7 @@ typedef nx_struct setup_t {
   
   nx_uint8_t    flags;            // Global flags ( such as ACK, LPL, ... )
   timersetup_t  timers[MAX_TIMER_COUNT];
-  nx_uint16_t   macparams[MAX_MAC_PARAMS];
+  nx_uint16_t   lplwakeup;
 } setup_t;
 
 #endif
