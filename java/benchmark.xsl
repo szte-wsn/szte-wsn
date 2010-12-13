@@ -50,15 +50,15 @@
           <td class="sub">Resend</td>
 
           <td class="sub">Total</td>
-          <td class="sub">SUCCESS</td>
+          <td class="sub">SUCC</td>
           <td class="sub">FAIL</td>
 
           <td class="sub">Total</td>
-          <td class="sub">SUCCESS</td>
+          <td class="sub">SUCC</td>
           <td class="sub">FAIL</td>
 
           <td class="sub">ACK</td>
-          <td class="sub">no ACK</td>
+          <td class="sub">noACK</td>
  
           <td class="sub">Total</td>
           <td class="sub">Expected</td>
@@ -82,7 +82,6 @@
       </table>
 
 <!-- ERROR CHECKING -->
-      <div class="title_light">Statistics Error Checking</div>
 
       <table class="data">
       <tr>
@@ -161,7 +160,6 @@
 
 <!-- END ERROR CHECKING -->
 
-      <div class="title_light">Mote Internal Error Checking</div>
       <xsl:apply-templates select="debuglist"/>
 
     </td>
@@ -194,6 +192,10 @@
         <tr>
           <td class="rt">Force-Bcast : </td>
           <td class="rt_data"><xsl:value-of select="bcast"/></td>
+        </tr>
+        <tr>
+          <td class="rt">LPL : </td>
+          <td class="rt_data"><xsl:value-of select="lpl"/></td>
         </tr>
       </table>
 </xsl:template>
@@ -231,7 +233,7 @@
 </xsl:template>
 
 <xsl:template match="debuglist">
-  <div>
+  <div class="debuglist">
   <xsl:for-each select="debug">
     <xsl:sort select="@idx"/>
     <strong>Mote <xsl:value-of select="@idx"/> :</strong>

@@ -127,9 +127,12 @@ public class BenchmarkCommons {
     out += "  Runtime: \t[max (" + config.get_pre_run_msec() + "ms) + " 
            + config.get_runtime_msec() + "ms + " 
            + config.get_post_run_msec() + " ms]" + newline;
-    out += "  Ack/Bcast: \t";
+    out += "  F.Ack/Bcast: \t";
     out += ( config.get_flags() & 0x1 ) > 0 ? "On/" : "Off/";
     out += ( config.get_flags() & 0x2 ) > 0 ? "On" : "Off";
+    out += newline;
+    out += "  LPL: \t\t";
+    out += (config.get_lplwakeup() == 0) ? "Off" : config.get_lplwakeup() + " ms";
     out += newline;
     
     out += "  Timers: \t[";
@@ -156,6 +159,7 @@ public class BenchmarkCommons {
     out +="    <post_runtime>" + config.get_post_run_msec() + "</post_runtime>";
     out +="    <ack>" + (((config.get_flags() & 0x1) > 0 )? "On" : "Off") + "</ack>";
     out +="    <bcast>" + (((config.get_flags() & 0x2) > 0 ) ? "On" : "Off") + "</bcast>";
+    out +="    <lpl>" + ((config.get_lplwakeup() == 0) ? "Off" : config.get_lplwakeup() + " ms") + "</lpl>";
   
     short ios[] = config.get_timers_isoneshot();
     long delay[] = config.get_timers_delay();
