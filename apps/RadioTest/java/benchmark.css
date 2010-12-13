@@ -23,6 +23,11 @@ div.title_light {
   color: #000000; 
 }
 
+div.debuglist {
+  margin-top: 5px;
+  text-align: center;
+}
+
 table.testresult {
   margin-bottom: 10px;
   border: 0px;
