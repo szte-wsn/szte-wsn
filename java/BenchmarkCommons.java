@@ -115,7 +115,7 @@ public class BenchmarkCommons {
     smsg.set_config_timers_delay(config.get_timers_delay());
     smsg.set_config_timers_period_msec(config.get_timers_period_msec());
     
-    smsg.set_config_macparams(config.get_macparams());
+    smsg.set_config_lplwakeup(config.get_lplwakeup());
     
     return smsg;    
   }
