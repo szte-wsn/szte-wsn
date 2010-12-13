@@ -58,20 +58,22 @@ public class BenchmarkController implements MessageListener {
   final Condition answered = lock.newCondition(); 
   private boolean handshake;
   
-  private static short currentMote = 1, currentData = 0;
-  private static short maxMoteId = 1, edgecount = 0;
+  private static int currentMote = 1, currentData = 0;
+  private static int maxMoteId = 1, edgecount = 0;
   private long running_time;
     
   private static final short  MAXPROBES   = 3;
   private static final int    MAXTIMEOUT  = 500;
 
-  public BenchmarkController()
+  public BenchmarkController(final int motecount)
 	{
+	  maxMoteId = motecount;
 	  this.init(System.out);
 	}
 	
-	public BenchmarkController(PrintStream stream)
+	public BenchmarkController(final int motecount, PrintStream stream)
 	{
+	  maxMoteId = motecount;
 	  this.init(stream);
 	}
 	
@@ -211,7 +213,7 @@ public class BenchmarkController implements MessageListener {
 
     CtrlMsgT cmsg = new CtrlMsgT();
     cmsg.set_type(type);
-    cmsg.set_data_req_idx(currentData);
+    cmsg.set_data_req_idx((short)currentData);
     handshake = false;
     lock.lock();
     for( short probe = 0; !handshake && probe < MAXPROBES; ++probe ) {
@@ -239,7 +241,8 @@ public class BenchmarkController implements MessageListener {
       if ( smsg.get_type() == BenchmarkStatic.SYNC_SETUP_ACK && stage == 0 ) {
         handshake = true;
         edgecount = smsg.get_edgecnt();
-        maxMoteId = smsg.get_maxmoteid();
+        if ( smsg.get_maxmoteid() > maxMoteId )
+          maxMoteId = smsg.get_maxmoteid();
         answered.signal();
       }
      
