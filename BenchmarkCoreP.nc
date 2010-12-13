@@ -63,9 +63,10 @@ module BenchmarkCoreP @safe() {
     interface Timer<TMilli> as TriggerTimer[uint8_t id];
     
     interface Packet;
+    interface AMPacket;
     interface PacketAcknowledgements as Ack;
     
-    interface MACInterface;
+    interface LowPowerListening;
     interface Leds;
     
     interface Random;
@@ -143,7 +144,10 @@ implementation {
     #ifdef _DEBUG_MODE_
     dbgLINE = 0;
     #endif
-    
+
+    call Packet.clear(&pkt);
+    call Ack.noAck(&pkt);
+        
     SET_STATE( STATE_IDLE )
   }
   
@@ -219,10 +223,6 @@ implementation {
   
   /** START THE REAL BENCHMARK */
   void startBenchmark() {
-    // setup the applied MAC protocol
-    if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
-      call MACInterface.enter(&pkt,(uint16_t*)config.macparams);
-      
     // If this node sends initial message(s)
     if ( pending )
       post sendPending();
@@ -239,7 +239,7 @@ implementation {
     pending_t blogd;
     
     _ASSERT_( sbitmask > 0 )
-    _ASSERT_( state == STATE_RUNNING || state == STATE_IDLE )
+    _ASSERT_( state == STATE_RUNNING || state == STATE_IDLE || state == STATE_POST_RUN )
     _ASSERT_( ((~outgoing_edges) & sbitmask) == 0 )
     
     atomic {
@@ -259,7 +259,7 @@ implementation {
       if ( sbitmask & 0x1 ) {
         ++(stats[i].triggerCount);
         if ( problem[i].nums.send_num == INFINITE )
-          problem[i].policy.inf_loop_on = TRUE;
+          problem[i].policy.inf_loop_on = 1;
       }
     }
   }
@@ -276,7 +276,7 @@ implementation {
     if ( state == STATE_CONFIGURED )
       return;
     
-    // Get clean variables and save the configuration
+    // Save the configuration
     config = conf;
     
     // Setup the problem
@@ -292,7 +292,7 @@ implementation {
     {
       edge_t* edge = problem + idx;
       // Clean values that are changed during operation
-      edge->policy.inf_loop_on = FALSE;
+      edge->policy.inf_loop_on = 0;
       edge->nums.left_num = edge->nums.send_num;
       edge->nextmsgid = START_MSG_ID;
             
@@ -319,7 +319,7 @@ implementation {
       }
       
       // Set the timer masks if this node needs to stop on timer ticks        
-      if ( (edge->policy.stop_trigger & STOP_ON_TIMER) != 0 )
+      if ( edge->policy.stop_trigger & STOP_ON_TIMER )
         tickMask_stop[edge->timers.stop] |= 1 << idx;
     }
     c_edge_cnt = idx;
@@ -331,6 +331,10 @@ implementation {
   /** START THE CURRENTLY CONFIGURED BENCHMARK */
   command error_t Test.start() { 
     _ASSERT_( state == STATE_CONFIGURED )
+    
+    // setup the applied MAC protocol
+    if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
+      call LowPowerListening.setLocalWakeupInterval(config.lplwakeup);
     
     // If a pre-benchmark delay is requested, make a delay
     if ( config.pre_run_msec > 0 ) {
@@ -351,8 +355,10 @@ implementation {
     call TestTimer.stop();
     SET_STATE( STATE_FINISHED );
     stopTimers();
+    
+    // cleanup the MAC
     if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
-      call MACInterface.exit(&pkt,(uint16_t*)config.macparams);
+      call LowPowerListening.setLocalWakeupInterval(0);
     
     // compute the remained statistic
     for ( i = 0; pending; ++i, pending >>= 1) {
@@ -384,7 +390,7 @@ implementation {
         // break; missing: fallback to STATE_POST_RUN !
  
       case STATE_POST_RUN:
-        _ASSERT_ ( SUCCESS == call Test.stop() )
+        call Test.stop();
         break;
         
       default:
@@ -405,9 +411,9 @@ implementation {
       uint8_t i = 0;
       pending_t temp = tickMask_stop[id];
       for ( i = 0; temp; ++i, temp >>= 1) {
-        if ( (temp & 0x1) != 0 &&  (problem[i].policy.stop_trigger & STOP_ON_TIMER) != 0 ) {
+        if ( (temp & 0x1) && (problem[i].policy.stop_trigger & STOP_ON_TIMER) ) {
           // This works for INFINITE and also for non-INF edges
-          problem[i].policy.inf_loop_on = FALSE;
+          problem[i].policy.inf_loop_on = 0;
           problem[i].nums.left_num = problem[i].nums.send_num;
         }
       }
@@ -447,7 +453,7 @@ implementation {
       edge->nextmsgid = msg->msgid + 1;
 
       // Check whether we have to reply
-      if ( (edge->reply_on & outgoing_edges) != 0 ) {
+      if ( edge->reply_on & outgoing_edges ) {
         // in case of "reply-to broadcast message" policy, the reply_on bitmask could
         // contain edges whose source is not this mote.
         // that is why, a filter is applied (outgoing_edges).
@@ -469,10 +475,7 @@ implementation {
 
     _ASSERT_( sendlock == LOCKED )
     _ASSERT_( state == STATE_RUNNING || state == STATE_POST_RUN || state == STATE_FINISHED )
-    
-    if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
-      call MACInterface.afterSend(bufPtr,(uint16_t*)config.macparams);
-    
+     
     if ( state == STATE_RUNNING || state == STATE_POST_RUN ) {
 
       _ASSERT_( edge->sender == TOS_NODE_ID )
@@ -520,15 +523,15 @@ implementation {
         } 
         
         // Check if we need to stop sending on ACK
-        if ( wasACK && (edge->policy.stop_trigger & STOP_ON_ACK) != 0 ) {
+        if ( wasACK && (edge->policy.stop_trigger & STOP_ON_ACK) ) {
             // This works for INFINITE and also for non-INF edges
-            edge->policy.inf_loop_on = FALSE;
+            edge->policy.inf_loop_on = 0;
             edge->nums.left_num = edge->nums.send_num;
             sendMore = FALSE;
         }
  
         // If the infinite sending loop has been stopped
-        if ( edge->nums.send_num == INFINITE && edge->policy.inf_loop_on != 1 ) {
+        if ( edge->nums.send_num == INFINITE && !edge->policy.inf_loop_on ) {
           sendMore = FALSE;
         }   
       }
@@ -573,24 +576,25 @@ implementation {
       _ASSERT_( problem[eidx].sender == TOS_NODE_ID )
         
       // Compose the new message
+      call Packet.clear(&pkt);
       t_msg = (testmsg_t*)(call Packet.getPayload(&pkt,sizeof(testmsg_t)));
       t_msg->edgeid = eidx;
       t_msg->msgid = problem[eidx].nextmsgid;
       
       // Find out the required addressing mode
       address = ( config.flags & GLOBAL_USE_BCAST ) ? AM_BROADCAST_ADDR : problem[eidx].receiver;
+     
+      // MAC specific settings
+      if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
+        call LowPowerListening.setRemoteWakeupInterval(&pkt,config.lplwakeup);
       
       // Find out whether we need to use ACK
-      if ( (config.flags & GLOBAL_USE_ACK) || problem[eidx].policy.need_ack == 1 ) {
+      if ( (config.flags & GLOBAL_USE_ACK) || problem[eidx].policy.need_ack ) {
         call Ack.requestAck(&pkt);
       } else {
         call Ack.noAck(&pkt);
       }
-      
-      // MAC specific settings
-      if ( config.flags & GLOBAL_USE_EXTERNAL_MAC )
-        call MACInterface.beforeSend(&pkt,(uint16_t*)config.macparams);
-   
+        
       // Send out
       switch ( call TxTest.send( address, &pkt, sizeof(testmsg_t)) ) {
         case SUCCESS :
