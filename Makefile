@@ -4,8 +4,6 @@ COMPONENT=BenchmarkAppC
 USE_CC2420X_EXPERIMENTAL=no
 
 # use low power listening
-PFLAGS += -I./mac
-PFLAGS += -I./mac/null
 #CFLAGS += -DLOW_POWER_LISTENING
 
 # use 32-bit length statistics ? (default is 16 bits)
