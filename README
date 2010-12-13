@@ -40,30 +40,14 @@ RadioBenchmark application README
              make telosa install,2
              make telosb install,3
     - ...
-    
-    4./a MAC protocol support:
-         ---------------------
-         The framework is able to use multiple MAC protocols whose parameters can be given by the 
-         java application (ex. Low Power Listening + wakeup interval parameter)
-         
-         To switch between multiple MAC protocols, you must edit the relevant section in the Makefile.
-         Examples:
-          - use Low Power Listening:
-            PFLAGS += -I./mac
-            PFLAGS += -I./mac/lpl
-            CFLAGS += -DLOW_POWER_LISTENING
-          - use nothing:
-            PFLAGS += -I./mac
-            PFLAGS += -I./mac/null
-            #CFLAGS += -DLOW_POWER_LISTENING
-            
-    4./b 32-bit statistics support:
+              
+    4./a 32-bit statistics support:
          --------------------------
          Statistics are generally 16-bit integers. If overflows are experienced, you should consider setting
          the USE_32_BITS compile-time flag in the Makefile:
          CFLAGS += -DUSE_32_BITS
          
-    4./c Defining and using benchmarks:
+    4./b Defining and using benchmarks:
          ------------------------------
          To define your own benchmarks, do it in the UserdefinedBenchmarks.h file where
          additional information is available on how you can do that. After doing that, count the maximum
@@ -77,7 +61,7 @@ RadioBenchmark application README
          You can exclude any of these two by setting the EXCLUDE_STANDARD or EXCLUDE_USERDEFINED flag
          in the Makefile.
         
-    4./d CC2420X support:
+    4./c CC2420X support:
          ----------------
          The experimental CC2420X driver for CC2420 chips is also supported. If you want to do experiments
          with that, change the USE_CC2420X_EXPERIMENTAL variable to 'yes' in the Makefile.
@@ -147,8 +131,7 @@ RadioBenchmark application README
 8. Known limitations:
    ----------------
    - Configuration and data uploading is done in a one-hop manner, so 'test-motes' must be in the radio
-     reception range of the BaseStation. We plan to support multi-hop configurations and uploadings in the
-     future.
+     reception range of the BaseStation.
    
    
    
