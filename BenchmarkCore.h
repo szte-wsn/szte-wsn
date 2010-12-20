@@ -33,8 +33,8 @@
 *         veresskrisztian@gmail.com
 */
 
-#ifndef INTERNAL_H
-#define INTERNAL_H
+#ifndef BENCHMARK_CORE_H
+#define BENCHMARK_CORE_H
 
 #if MAX_EDGE_COUNT <= 8
   typedef uint8_t pending_t;
