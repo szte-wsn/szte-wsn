@@ -33,7 +33,7 @@
 *         veresskrisztian@gmail.com
 */
 
-#include "Internal.h"
+#include "BenchmarkCore.h"
 
 interface BenchmarkCore {
   
@@ -70,6 +70,7 @@ interface BenchmarkCore {
   
   /** Resets the benchmarking core component */
   command void reset();
+
   /** Indicates the finish of the reset operation */
   event void resetDone();
   
