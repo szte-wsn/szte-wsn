@@ -36,15 +36,18 @@
 #ifndef BENCHMARKS_H
 #define BENCHMARKS_H
 
-#include "Internal.h"
+#include "BenchmarkCore.h"
 #include <AM.h>
 
-#define _BMARK_START_  
-#define _BMARK_END_ ,{INVALID_SENDER,0,{0,0},{0,0,0,0,0},{0,0},0,0},
+// Every benchmark can be numbered when defining it
+// This number is hidden in a separator edge right between the 
+// benchmark's own edges
+#define _BMARK_START_(id) {INVALID_SENDER,(id),{0,0},{0,0,0,0,0},{0,0},0,0},  
+#define _BMARK_END_ ,
+
 #define PROBLEMSET_END   {0,0,{0,0},{0,0,0,0,0},{0,0},0,0}
 
 #define INVALID_SENDER  AM_BROADCAST_ADDR
-
 #define ALL             AM_BROADCAST_ADDR
 
 #define REPLY_ON(POS) (1<<(POS))
