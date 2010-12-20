@@ -33,18 +33,35 @@
 *         veresskrisztian@gmail.com
 */
 
+#include "Messages.h"
+
 configuration BenchmarkAppC {}
 
 implementation {
   components MainC;
+  Comm.Boot -> MainC.Boot;
   
   components BenchmarkCoreC as Core;
-  components BenchmarkControlC as Control;
+  components BenchmarkAppP as Comm;
+  Comm.BenchmarkCore -> Core;
+  Comm.CoreControl -> Core;
+  Comm.CoreInit -> Core;
   
-  Control.Boot -> MainC.Boot;
-  Control.BenchmarkCore -> Core;
-  Control.CoreControl -> Core;
-  Control.CoreInit -> Core;
+  components new AMReceiverC(AM_CTRLMSG_T)    	      as RxCtrl;
+  components new AMReceiverC(AM_SETUPMSG_T)    	      as RxSetup;
+  Comm.RxCtrl -> RxCtrl;
+  Comm.RxSetup -> RxSetup;
+  
+  components new DirectAMSenderC(AM_SYNCMSG_T)        as TxSync;
+  components new DirectAMSenderC(AM_DATAMSG_T)        as TxData;
+  Comm.TxSync -> TxSync;
+  Comm.TxData -> TxData;
+  
+  components LedsC;
+  Comm.Leds -> LedsC;
+      
+  components ActiveMessageC; 
+  Comm.AMControl -> ActiveMessageC;
+  Comm.Packet -> ActiveMessageC;
   
 }
-
