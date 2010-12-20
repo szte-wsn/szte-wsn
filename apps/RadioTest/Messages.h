@@ -36,7 +36,7 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
-#include "Internal.h"
+#include "BenchmarkCore.h"
 
 enum {
   // AM Type identifiers
