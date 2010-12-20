@@ -35,7 +35,7 @@
 
 #define  _DEBUG_MODE_
 
-#include "Internal.h"
+#include "BenchmarkCore.h"
 #include "Benchmarks.h"
 
 #define SET_STATE(s) atomic { call Leds.set(s); state = s; }
@@ -86,7 +86,6 @@ implementation {
     STATE_RUNNING     = 0x4,
     STATE_POST_RUN    = 0x5,
     STATE_FINISHED    = 0x6,
-    STATE_DEBUGGING   = 0x7,
     
     // Sendlock states
     UNLOCKED          = 0,
@@ -94,7 +93,7 @@ implementation {
     
   };
   
-
+  
   uint8_t     state, sendlock;
   setup_t     config;
   message_t   pkt;
@@ -267,7 +266,7 @@ implementation {
   
   /** SETUP THE BENCHMARK **/
   command void BenchmarkCore.setup(setup_t conf) {
-    uint8_t   idx, k;
+    uint8_t idx;
     
     _ASSERT_( state == STATE_IDLE || state == STATE_CONFIGURED )
     _ASSERT_( conf.runtime_msec > 0 );
@@ -280,11 +279,22 @@ implementation {
     config = conf;
     
     // Setup the problem
-    for( idx = 0, k = 0; problemSet[idx].sender != 0 && k < config.problem_idx; ++idx ) {
-      if ( problemSet[idx].sender == INVALID_SENDER ) 
-        ++k;
+    // WARNING: This is a very dirty hack by intent. Benchmarks are preceded by a
+    // separator edge having sender = INVALID_SENDER and receiver = problem number.
+    // That separator edge we are now looking for!
+    idx = 0;
+    while ( problemSet[idx].sender != 0 &&
+            ! ( problemSet[idx].sender == INVALID_SENDER && 
+                problemSet[idx].receiver == config.problem_idx ) ) {
+      ++idx;
     }
-    problem = problemSet + idx;
+    // In case we haven't found any benchmark with the requested id, kill the mote.
+    if ( problemSet[idx].sender == 0 ) {
+      SET_STATE( STATE_INVALID )
+      return;
+    } else { 
+      problem = problemSet + idx + 1;
+    }
     
     c_maxmoteid = 1;
     // Initialize the edges
@@ -509,7 +519,6 @@ implementation {
       // If message is NOT considered to be sent
       if ( ! validSend ) {
         ++(stat->resendCount);
-        ++(stat->triggerCount);
 
       } else {
 
@@ -539,7 +548,9 @@ implementation {
       // Remove the pending bit if applicable     
       if ( !sendMore ) {
         atomic { pending &= ~ (1 << msg->edgeid ); }
-      } 
+      } else {
+        ++(stat->triggerCount);
+      }
             
       sendlock = UNLOCKED;
       if ( pending )
