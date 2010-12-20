@@ -1,11 +1,11 @@
 BUILD_EXTRA_DEPS += java/CtrlMsgT.java java/DataMsgT.java java/SyncMsgT.java java/SetupMsgT.java java/StatT.java java/SetupT.java
 CLEAN_EXTRA      += main.elf java/*.class java/*T.java
 
-java/StatT.java: Internal.h Makefile
-	mig -target=$(PLATFORM) $(CFLAGS) -java-classname=StatT java Internal.h stat_t -o $@
+java/StatT.java: BenchmarkCore.h Makefile
+	mig -target=$(PLATFORM) $(CFLAGS) -java-classname=StatT java BenchmarkCore.h stat_t -o $@
 
-java/SetupT.java: Internal.h
-	mig -target=$(PLATFORM) -java-classname=SetupT java Internal.h setup_t -o $@
+java/SetupT.java: BenchmarkCore.h
+	mig -target=$(PLATFORM) -java-classname=SetupT java BenchmarkCore.h setup_t -o $@
 
 java/CtrlMsgT.java: Messages.h
 	mig -target=$(PLATFORM) -java-classname=CtrlMsgT java Messages.h ctrlmsg_t -o $@
@@ -22,7 +22,7 @@ java/DataMsgT.java: Messages.h
 BUILD_EXTRA_DEPS += java/BenchmarkStatic.java
 CLEAN_EXTRA      += java/BenchmarkStatic.java
 
-java/BenchmarkStatic.java: Internal.h Messages.h
+java/BenchmarkStatic.java: BenchmarkCore.h Messages.h
 	ncg -target=$(PLATFORM) -o $@ -java-classname=BenchmarkStatic java Messages.h \
 	MAX_TIMER_COUNT SETUP_BASE CTRL_SETUP_SYN SYNC_SETUP_ACK CTRL_START CTRL_RESET \
 	CTRL_STAT_REQ DATA_STAT_OK CTRL_DBG_REQ DATA_DBG_OK \
