@@ -116,6 +116,10 @@ RadioBenchmark application README
    ----------------------------------
    The code is written in a way so that the status of each 'test mote' can be tracked during the 
    whole process. 
+    0. All LEDs   off : motes are in invalid state. This can only occur if you specify a benchmark
+                        to be run that is not available in the benchmark database.
+                        Do not worry, just reset them (java Benchmark -r), or simply run a benchmark
+                        which is available.
     1. LED 1       on : mote is reset, standing by, waits for running a benchmark.
     2. LED 2       on : mote received configuration, waits for handshake with the PC program
     3. LED 1,LED 2 on : mote successfully configured, handshake is done
