@@ -144,7 +144,7 @@ public class BenchmarkCommons {
                
     for (int i=0; i< BenchmarkStatic.MAX_TIMER_COUNT; ++i) {
       out += (ios[i] == 1 ) ? "1shot " : "period ";
-      out += delay[i] + "ms) ";
+      out += delay[i] + "ms/";
       out += period[i] + "ms";
       if (i != BenchmarkStatic.MAX_TIMER_COUNT-1)
         out += " | ";
@@ -168,7 +168,7 @@ public class BenchmarkCommons {
     long period[] = config.get_timers_period_msec();        
     for (int i=0; i< BenchmarkStatic.MAX_TIMER_COUNT; ++i) {
       out += "<timer idx=\"" + i + "\" ";
-      out += (ios[0] == 0 )? "oneshot=\"yes\" " : "oneshot=\"no\" ";
+      out += (ios[i] == 1 )? "oneshot=\"yes\" " : "oneshot=\"no\" ";
       out += "delay=\"" + delay[i] + "\" ";
       out += "period=\"" + period[i] + "\"/>";
     }

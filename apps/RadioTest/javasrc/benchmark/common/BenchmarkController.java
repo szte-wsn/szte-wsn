@@ -44,27 +44,30 @@ import java.util.Calendar;
 
 public class BenchmarkController implements MessageListener {
 	
-	private MoteIF mif;
-  private short stage;
-  PrintStream ostream;
+	private MoteIF  mif;
+  PrintStream     ostream;
 
+  private enum Stage {
+    IDLE, RUNNING, DOWNLOAD
+  }
+  private Stage   stage;
+  private SetupT  config;
+  private long    running_time;
+  
   // Memory for downloaded data
   private Vector< StatT >   stats;
   private long[]            debuglines;
-  private SetupT            config;
 
   // Needed for proper downloading
   final Lock lock = new ReentrantLock();
   final Condition answered = lock.newCondition(); 
   private boolean handshake;
-  
-  private static int currentMote = 1, currentData = 0;
-  private static int maxMoteId = 1, edgecount = 0;
-  private long running_time;
-    
   private static final short  MAXPROBES   = 3;
   private static final int    MAXTIMEOUT  = 500;
 
+  private static int currentMote = 1, currentData = 0;
+  private static int maxMoteId   = 1, edgecount   = 0;
+  
   public BenchmarkController(final int motecount)
 	{
     maxMoteId = motecount;
@@ -82,7 +85,7 @@ public class BenchmarkController implements MessageListener {
     mif.registerListener(new SyncMsgT(),this);
     mif.registerListener(new DataMsgT(),this);
     
-    stage = 0;
+    stage = Stage.IDLE;
     ostream = stream;
 	}
 
@@ -94,7 +97,7 @@ public class BenchmarkController implements MessageListener {
 		try {
 			mif.send(MoteIF.TOS_BCAST_ADDR,cmsg);
 			Thread.sleep((int)(500));
-      stage = 0;
+      stage = Stage.IDLE;
       ostream.println("OK");
       return true;
 		} catch(Exception e) {
@@ -144,8 +147,8 @@ public class BenchmarkController implements MessageListener {
 
     CtrlMsgT cmsg = new CtrlMsgT();
     cmsg.set_type(BenchmarkStatic.CTRL_START);
-    // We are now on running stage
-    stage = 1;    
+    // We are now in running stage
+    stage = Stage.RUNNING;
 
     ostream.print("> Running benchmark ... ");
 		try {
@@ -162,20 +165,31 @@ public class BenchmarkController implements MessageListener {
 
   public boolean download()
 	{
-    // We are now on downloading stage
-    stage = 2;  
+    // We are now in downloading stage
+    stage = Stage.DOWNLOAD;
     stats = new Vector<StatT>(edgecount);
     for( int i = 0; i< edgecount; ++i)
       stats.add(new StatT());
 
-    debuglines = new long[maxMoteId];
     ostream.print("> Downloading data  ... "); 
-
     for ( currentMote = 1; currentMote <= maxMoteId ; ++currentMote ) {
       for ( currentData = 0; currentData < edgecount; ++currentData ) {
         if ( !requestData(BenchmarkStatic.CTRL_STAT_REQ,"STAT") )
           return false;      
       }
+    }
+    ostream.println("OK");
+    return true;
+	}
+
+  public boolean download_debug()
+	{
+    // We are now in downloading stage
+    stage = Stage.DOWNLOAD;
+    debuglines = new long[maxMoteId];
+
+    ostream.print("> Downloading debug ... ");
+    for ( currentMote = 1; currentMote <= maxMoteId ; ++currentMote ) {
       if ( !requestData(BenchmarkStatic.CTRL_DBG_REQ, "DEBUG") )
         return false;
     }
@@ -236,9 +250,9 @@ public class BenchmarkController implements MessageListener {
   public void messageReceived(int dest_addr,Message msg)
 	{
 	  lock.lock();
-    if ( msg instanceof SyncMsgT ) {
+    if ( msg instanceof SyncMsgT && stage == Stage.IDLE ) {
       SyncMsgT smsg = (SyncMsgT)msg;
-      if ( smsg.get_type() == BenchmarkStatic.SYNC_SETUP_ACK && stage == 0 ) {
+      if ( smsg.get_type() == BenchmarkStatic.SYNC_SETUP_ACK ) {
         handshake = true;
         edgecount = smsg.get_edgecnt();
         if ( smsg.get_maxmoteid() > maxMoteId )
@@ -246,10 +260,10 @@ public class BenchmarkController implements MessageListener {
         answered.signal();
       }
      
-    } else if ( msg instanceof DataMsgT ) {
+    } else if ( msg instanceof DataMsgT && stage == Stage.DOWNLOAD ) {
     
       DataMsgT rmsg = (DataMsgT)msg;
-      if ( rmsg.get_type() == BenchmarkStatic.DATA_STAT_OK && stage == 2  && 
+      if ( rmsg.get_type() == BenchmarkStatic.DATA_STAT_OK && 
            currentData == rmsg.get_data_idx() ) {
        
         stats.set(currentData,
@@ -262,7 +276,7 @@ public class BenchmarkController implements MessageListener {
         handshake = true;
         answered.signal();
   
-      } else if ( rmsg.get_type() == BenchmarkStatic.DATA_DBG_OK && stage == 2 ) {
+      } else if ( rmsg.get_type() == BenchmarkStatic.DATA_DBG_OK ) {
 
         debuglines[currentMote-1] = rmsg.get_payload_debug();
         handshake = true;
@@ -279,13 +293,15 @@ public class BenchmarkController implements MessageListener {
       outstream.println("<testresult date=\"" + calendar.getTime().toString() + "\">");
       outstream.println(BenchmarkCommons.setupAsXml(config));
       outstream.println(BenchmarkCommons.statsAsXml(stats));
-      outstream.println(BenchmarkCommons.debugAsXml(debuglines));
+      if ( debuglines != null )
+        outstream.println(BenchmarkCommons.debugAsXml(debuglines));
       outstream.println("</testresult>");
       
     } else {
     
       outstream.println(BenchmarkCommons.statsAsString(stats));
-      outstream.println(BenchmarkCommons.debugAsString(debuglines));
+      if ( debuglines != null )
+        outstream.println(BenchmarkCommons.debugAsString(debuglines));
     }
   }
 

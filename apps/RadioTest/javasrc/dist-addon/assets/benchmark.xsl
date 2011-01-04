@@ -11,7 +11,7 @@
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 <meta http-equiv="description" content="RadioTest result report" />
 <title>RadioTest result report</title>
-<link rel="stylesheet" href="benchmark.css" type="text/css"/>
+<link rel="stylesheet" href="assets/benchmark.css" type="text/css"/>
 </head>
 
 <body>
@@ -40,7 +40,6 @@
           <td class="title_send" colspan="3">sendDone()</td>
           <td class="title_send" colspan="2">&#160;</td>
           <td class="title_rcv" colspan="6">receive()</td>
-          <td class="sub" colspan="2"><strong>msgID</strong></td>
         </tr>
         <tr>
           <td class="sub"><strong>Edge</strong></td>
@@ -67,16 +66,12 @@
           <td class="sub">Forward</td>
           <td class="sub">Missed</td>
 
-          <td class="sub">Nxt</td>
-          <td class="sub">Nxt</td>
-
         </tr>
         <xsl:for-each select="statlist/stat">
         <tr>
           <xsl:variable name="curr_idx" select="@idx"/>
           <td class="sub"><xsl:value-of select="$curr_idx"/></td>
           <xsl:apply-templates select="current()[@idx=$curr_idx]"/>
-          <xsl:apply-templates select="../../finallist/finaledgestate[@idx=$curr_idx]"/>
         </tr>
         </xsl:for-each>
       </table>
@@ -197,6 +192,19 @@
           <td class="rt">LPL : </td>
           <td class="rt_data"><xsl:value-of select="lpl"/></td>
         </tr>
+        <xsl:for-each select="timer">
+          <xsl:sort select="@idx"/>
+          <tr>
+            <td class="rt">Timer(<xsl:value-of select="@idx"/>) : </td>
+            <td class="rt_data">
+            <xsl:choose>
+            <xsl:when test="@oneshot='yes'"> 1sh </xsl:when>
+            <xsl:otherwise> per </xsl:otherwise>
+            </xsl:choose>
+            | <xsl:value-of select="@delay"/>/<xsl:value-of select="@period"/></td>
+          </tr>
+    
+        </xsl:for-each>
       </table>
 </xsl:template>
 
@@ -225,11 +233,6 @@
           <td class="rt_data rcv"><xsl:value-of select="FC"/></td>
           <td class="rt_data rcv"><xsl:value-of select="MC"/></td>
           
-</xsl:template>
-
-<xsl:template match="finaledgestate">
-          <td class="rt_data snd"><xsl:value-of select="SNM"/></td>
-          <td class="rt_data rcv"><xsl:value-of select="RNM"/></td>
 </xsl:template>
 
 <xsl:template match="debuglist">

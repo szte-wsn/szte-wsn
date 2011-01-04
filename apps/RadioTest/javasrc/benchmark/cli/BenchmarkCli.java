@@ -78,30 +78,32 @@ public class BenchmarkCli {
     f.printHelp(150, "Benchmark", "", opt2, "", true);
     
     // Download - usage
-    Options opt4 = new Options();
-    opt4.addOption(opt.getOption("dload"));
-    opt4.addOption(opt.getOption("mc"));
+    Options opt3 = new Options();
+    opt3.addOption(opt.getOption("dload"));
+    opt3.addOption(opt.getOption("dbg"));
+    opt3.addOption(opt.getOption("mc"));
     System.out.println();
     System.out.println("4. Only download data from the motes (if data available).");
     System.out.println("--------------------------------------------------------------------");
-    f.printHelp(150, "Benchmark", "", opt4, "", true);
+    f.printHelp(150, "Benchmark", "", opt3, "", true);
     
     // Command-line usage
-    Options opt3 = new Options();
-    opt3.addOption(opt.getOption("b"));
-    opt3.addOption(opt.getOption("t"));
-    opt3.addOption(opt.getOption("rs"));
-    opt3.addOption(opt.getOption("lc"));
-    opt3.addOption(opt.getOption("tr"));
-    opt3.addOption(opt.getOption("ack"));
-    opt3.addOption(opt.getOption("bcast"));
-    opt3.addOption(opt.getOption("xml"));
-    opt3.addOption(opt.getOption("lpl"));
-    opt3.addOption(opt.getOption("mc"));
+    Options opt4 = new Options();
+    opt4.addOption(opt.getOption("b"));
+    opt4.addOption(opt.getOption("t"));
+    opt4.addOption(opt.getOption("rs"));
+    opt4.addOption(opt.getOption("lc"));
+    opt4.addOption(opt.getOption("tr"));
+    opt4.addOption(opt.getOption("ack"));
+    opt4.addOption(opt.getOption("bcast"));
+    opt4.addOption(opt.getOption("xml"));
+    opt4.addOption(opt.getOption("lpl"));
+    opt4.addOption(opt.getOption("mc"));
+    opt4.addOption(opt.getOption("dbg"));
     System.out.println();
     System.out.println("5. Running a specific benchmark with command-line arguments");
     System.out.println("--------------------------------------------------------------------");
-    f.printHelp(150, "Benchmark", "", opt3, "", true);
+    f.printHelp(88, "Benchmark", "", opt4, "", true);
     
   }
 
@@ -109,35 +111,77 @@ public class BenchmarkCli {
     opt = new Options();
 
     // Batch related options
-    Option batchfile = OptionBuilder.withArgName("file").hasArg().withDescription("The batch file with configuration parameters for multiple benchmark runs").create("F");
+    Option batchfile = OptionBuilder
+            .withArgName("file")
+            .hasArg()
+            .withDescription("The batch file with configuration parameters for multiple benchmark runs")
+            .create("F");
 
-    Option batchoutput = OptionBuilder.withArgName("file").hasArg().withDescription("The output XML file name. [default: results.xml]").create("o");
-
-
+    Option batchoutput = OptionBuilder
+            .withArgName("file")
+            .hasArg()
+            .withDescription("The output XML file name. [default: results.xml]")
+            .create("o");
 
     // Problem id option
-    Option problem = OptionBuilder.withArgName("number").hasArg().withDescription("The benchmark to be used").withLongOpt("benchmark").create("b");
+    Option problem = OptionBuilder
+            .withArgName("number")
+            .hasArg()
+            .withDescription("The benchmark to be used")
+            .withLongOpt("benchmark")
+            .create("b");
 
     // Time- related options
-    Option randomstart = OptionBuilder.withArgName("number").hasArg().withDescription("Random start delay in millisecs. [default: " + def_runtimes[0] + " msec]").withLongOpt("randomstart").create("rs");
+    Option randomstart = OptionBuilder
+            .withArgName("number")
+            .hasArg()
+            .withDescription("Random start delay in millisecs. [default: " + def_runtimes[0] + " msec]")
+            .withLongOpt("randomstart")
+            .create("rs");
 
-    Option runtime = OptionBuilder.withArgName("normal").hasArg().withDescription("The benchmark running time in millisecs. [default: " + def_runtimes[1] + " msec]").withLongOpt("time").create("t");
+    Option runtime = OptionBuilder
+            .withArgName("normal")
+            .hasArg()
+            .withDescription("The benchmark running time in millisecs. [default: " + def_runtimes[1] + " msec]")
+            .withLongOpt("time")
+            .create("t");
 
-    Option lastchance = OptionBuilder.withArgName("number").hasArg().withDescription("The grace time period after test completion for last-chance reception. [default : " + def_runtimes[2] + " msec]").withLongOpt("lastchance").create("lc");
+    Option lastchance = OptionBuilder
+            .withArgName("number")
+            .hasArg()
+            .withDescription("The grace time period after test completion for last-chance reception. [default : " + def_runtimes[2] + " msec]")
+            .withLongOpt("lastchance")
+            .create("lc");
 
     // Timer-related option
     String deftimer = def_timers[0] + "," + def_timers[1] + "," + def_timers[2];
-    Option trtimers = OptionBuilder.withArgName("timer config list").hasArg().withDescription("Trigger timer configuration index:isoneshot,maxrandomdelay,period.  [default : 1:" + deftimer + " ]").withLongOpt("triggers").create("tr");
+    Option trtimers = OptionBuilder
+            .withArgName("timer config list")
+            .hasArg()
+            .withDescription("Trigger timer configuration index:isoneshot,maxrandomdelay,period.  [default : 1:" + deftimer + " ]")
+            .withLongOpt("triggers")
+            .create("tr");
 
 
-    Option xml = OptionBuilder.withArgName("file").hasArg().withDescription("Produce xml output").create("xml");
+    Option xml = OptionBuilder
+            .withArgName("file")
+            .hasArg()
+            .withDescription("Produce xml output")
+            .create("xml");
 
-    Option lpl = OptionBuilder.withArgName("MAC param").hasArg().withDescription("Wakeup interval for LPL/LPP").create("lpl");
+    Option lpl = OptionBuilder
+            .withArgName("MAC param")
+            .hasArg()
+            .withDescription("Wakeup interval for LPL/LPP")
+            .create("lpl");
 
-    Option mcount = OptionBuilder.withArgName("number").hasArg().withDescription("How many motes are in the network.").withLongOpt("motecount").create("mc");
+    Option mcount = OptionBuilder
+            .withArgName("number")
+            .hasArg()
+            .withDescription("How many motes are in the network.")
+            .withLongOpt("motecount")
+            .create("mc");
 
-    opt.addOption("h", "help", false, "Print help for this application");
-    opt.addOption("r", "reset", false, "Reset all motes");
 
     opt.addOption(problem);
     opt.addOption(randomstart);
@@ -146,32 +190,40 @@ public class BenchmarkCli {
     opt.addOption(xml);
     opt.addOption(lpl);
     opt.addOption(mcount);
-
     opt.addOption(trtimers);
+    opt.addOption(batchfile);
+    opt.addOption(batchoutput);
+
+    opt.addOption("h", "help", false, "Print help for this application");
+    opt.addOption("r", "reset", false, "Reset all motes");
     opt.addOption("ack", false, "Force acknowledgements. [default : false]");
     opt.addOption("bcast", "broadcast", false, "Force broadcasting. [default : false]");
     opt.addOption("dload", "download", false, "Only download data from motes.");
+    opt.addOption("dbg", false, "Download also debug information. [default : false]");
 
-    opt.addOption(batchfile);
-    opt.addOption(batchoutput);
   }
   
 	public static void main (String[] args)
-	{
-
+  {
     try {
       initOptions();
       BasicParser parser = new BasicParser();
       CommandLine cl = parser.parse(opt, args);
 
+      // Help request -- if present, do nothing else.
+      // -----------------------------------------------------------------------
       if ( cl.hasOption('h') ) {
         printHelp();
-      } else if ( cl. hasOption('r') ) {
-      
-        // Reset the motes
+      }
+      // Reset request -- if present, do nothing else.
+      // -----------------------------------------------------------------------
+      else if ( cl. hasOption('r') ) {
         BenchmarkController rbr = new BenchmarkController((short)0);
         rbr.reset();
-      } else if ( cl.hasOption("dload") ) {
+      }
+      // Download request
+      // -----------------------------------------------------------------------
+      else if ( cl.hasOption("dload") ) {
       
         int motecount = cl.hasOption("mc") 
                                 ? Integer.parseInt(cl.getOptionValue("mc")) 
@@ -179,19 +231,26 @@ public class BenchmarkCli {
         if ( motecount < 1 )
           throw new MissingOptionException("Invalid number of motes specified!");
       
-        // Download the data
         BenchmarkController rbr = new BenchmarkController(motecount);
-        if ( rbr.sync() && rbr.download() )
-            rbr.printResults(System.out,false);
-
-      } else if ( cl.hasOption('F') ) {
+        if ( rbr.sync() &&
+             rbr.download() &&
+             (cl.hasOption("dbg") ? rbr.download_debug() : true) )
+          rbr.printResults(System.out,false);
+        
+      }
+      // Batch request
+      // -----------------------------------------------------------------------
+      else if ( cl.hasOption('F') ) {
         String bfile = cl.getOptionValue('F');
         String ofile = cl.hasOption('o') ? cl.getOptionValue('o') : "results.xml";
         
-        //BenchmarkBatch rbb = new BenchmarkBatch(bfile,ofile);
-        //rbb.run();
+        BenchmarkBatch rbb = new BenchmarkBatch(bfile,ofile);
+        rbb.run();
      
-      } else if ( cl.hasOption('b') ) {
+      }
+      // Command line control
+      // -----------------------------------------------------------------------
+      else if ( cl.hasOption('b') ) {
         
         short problemidx = (short)Integer.parseInt(cl.getOptionValue('b'));
         if ( problemidx < 0 )
@@ -228,11 +287,10 @@ public class BenchmarkCli {
           throw new MissingOptionException("Invalid number of motes specified!");
  
         // Trigger timer initialization values
-
         short ios[] =   new short[BenchmarkStatic.MAX_TIMER_COUNT];
         long delay[] =  new long[BenchmarkStatic.MAX_TIMER_COUNT];
         long period[] = new long[BenchmarkStatic.MAX_TIMER_COUNT];
-        
+
         for( int i = 0; i < BenchmarkStatic.MAX_TIMER_COUNT; ++i ) {
           ios[i] = (byte)def_timers[0];
           delay[i] = def_timers[1];
@@ -277,7 +335,7 @@ public class BenchmarkCli {
         if ( cl.hasOption("lpl") )
           flags |= BenchmarkStatic.GLOBAL_USE_EXTERNAL_MAC;
         
-                            
+        // Create the setup structure
         SetupT st = new SetupT();
         st.set_problem_idx(problemidx);
         st.set_pre_run_msec(startdelay);
@@ -288,21 +346,23 @@ public class BenchmarkCli {
         st.set_timers_delay(delay);
         st.set_timers_period_msec(period);
         st.set_lplwakeup(lplwakeup);
-        
-        // Reset the motes
+
         BenchmarkController rbr = new BenchmarkController(motecount);
-        
-        PrintStream ps = cl.hasOption("xml") ? new PrintStream(cl.getOptionValue("xml")) : System.out;
-        
-        // Run the test
-        if (  rbr.reset() && rbr.setup(st) && rbr.run() && rbr.download() ) {
+        if ( rbr.reset() && 
+             rbr.setup(st) &&
+             rbr.run() &&
+             rbr.download() &&
+             (cl.hasOption("dbg") ? rbr.download_debug() : true)
+             ) {
+          
           if (cl.hasOption("xml")) {
+            PrintStream ps = new PrintStream(cl.getOptionValue("xml"));
             ps.println(BenchmarkCommons.xmlHeader());
             rbr.printResults(ps,true);
             ps.println(BenchmarkCommons.xmlFooter());
           }
           else
-            rbr.printResults(ps,false);
+            rbr.printResults(System.out,false);
         } else {
           System.exit(1);
         } 
