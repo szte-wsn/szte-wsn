@@ -1,4 +1,4 @@
-RadioBenchmark application README
+LinkBenchmark application README
 
 1. Authors/Contacts:
    -----------------
@@ -21,19 +21,22 @@ RadioBenchmark application README
     - multiple 'test motes' with TOS_NODE_IDs 1,2,3, ... based on the required mote count of
       the benchmark to be run
    
-   One should take note that mote's channel is set to the same value (based on the DEF_CHANNEL env variable), so when using
+   One should take note that mote's channels are set to the same value (based on the DEF_CHANNEL env variable), so when using
    different radio chips, compile time definitions such as
     -DRF230_DEF_CHANNEL = $(DEF_CHANNEL), and
     -DCC2420_DEF_CHANNLE = $(DEF_CHANNEL), ...
    
    are preset in the Makefile. Of course, it is allowed to change.
+   To change this channel, set the DEF_CHANNEL variable to the required number:
+     - in Unix systems : export DEF_CHANNEL=22
+     - in Windows      : set DEF_CHANNEL=22    
    
 4. Programming the motes:
    ----------------------
    To program the 'test motes', simply execute the make command with appropriate options.
    Examples:
     - iris mote connected to MIB510 programmer on the first USB slot, assign TOS_NODE_ID=1 
-    UNIX   : make iris install,1 mib510,/dev/ttyUSB0
+    Unix   : make iris install,1 mib510,/dev/ttyUSB0
     Windows: make iris install,1 mib510,COM1
   
     - telosa/telosb motes, assign TOS_NODE_ID=2 and 3
@@ -54,47 +57,29 @@ RadioBenchmark application README
          of edges used in all your benchmarks, and set it in the Makefile:
          CFLAGS += -DMAX_EDGE_COUNT=8
          
-         Note that by default, the Standard AND the Userdefined benchmarks are used, so specifing the 
-         benchmark to be used (see README 6. section) is based on the number of benchmarks defined in
-         these files (Standards come first).
-         
-         You can exclude any of these two by setting the EXCLUDE_STANDARD or EXCLUDE_USERDEFINED flag
+         You can exclude benchmark sets by setting the EXCLUDE_STANDARD or EXCLUDE_USERDEFINED flag
          in the Makefile.
-        
-    4./c CC2420X support:
-         ----------------
-         The experimental CC2420X driver for CC2420 chips is also supported. If you want to do experiments
-         with that, change the USE_CC2420X_EXPERIMENTAL variable to 'yes' in the Makefile.
-         Additionally, you have to set the SZTETOSDIR env variable to point to the szte-wsn project's root
-         ( szte-wsn.svn.sourceforge.net ).
-         
+                 
 5. Compiling the PC program:
    -------------------------
-    The application comes shipped with a PC-based control program. The program depends on the
-    tinyos.jar (TinyOS Java components) and libcommons-cli.jar (Apache CLI components) files, 
-    so first set the CLASSPATH variable to contain at least these files, and the RadioBenchmark
-    application's java source directory.
-    
-    Example:
-      export CLASSPATH=/usr/share/java/commons-cli.jar:/opt/tinyos-2.x/support/sdk/java/tinyos.jar
-      export CLASSPATH=$CLASSPATH:/path/to/RadioBenchmark/java
-      
-    After that, simply execute in the /path/to/RadioBenchmark/java folder:
-      javac *.java
+    The application comes shipped with a PC-based control program located in the javasrc directory.
+    The program depends on the tinyos.jar (TinyOS Java components) file, which comes with your
+    TinyOS development libraries.
     
     In order to successfully compile, the code needs mig-generated classes, so make sure you
-    have made a 'make <target>' for any target before compiling Java sources. Otherwise you 
-    get errors like:
+    have made a 'make <target>' for any target before compiling Java sources. Also you gonna need 
+    the ant (at least 1.7) utility which is a make system for Java.
     
-    Benchmark.java:235: cannot find symbol
-    symbol  : variable BenchmarkStatic
-    location: class Benchmark
-        long period[] = new long[BenchmarkStatic.MAX_TIMER_COUNT];
-         
-       
-    Then, executing
-      java Benchmark --help
-    will give you details on how this application can be used.
+    If everything is prepared, just type:
+      ant
+    in the javasrc directory. This will create a javabin directory in the root directory of the project.
+        
+    Then, executing either of the followings
+      java -jar Benchmark.jar --help
+      java -jar benchmarkBatch.jar --help
+      ./bmark --help
+      ./batch --help
+    in the javabin folder will give you details on how this application can be used.
     
 6. Using the application:
    ----------------------
