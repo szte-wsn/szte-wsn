@@ -153,7 +153,7 @@ implementation {
   /** START THE NEEDED TRIGGERING TIMERS **/
   void startTimers() {
     uint8_t i;
-    uint32_t now,delay;
+    uint32_t now;
     
     for(i = 0; i< MAX_TIMER_COUNT; ++i) {
     	// If the current timer is unused, do not start it
@@ -161,11 +161,12 @@ implementation {
     		continue;
    		
       now = call TriggerTimer.getNow[0]();
-      delay = ( config.timers[i].delay != 0 ) ? (call Random.rand32() % config.timers[i].delay) : 0;
       if ( config.timers[i].isoneshot )
-        call TriggerTimer.startOneShotAt[i]( now + delay, config.timers[i].period_msec);
+        call TriggerTimer.startOneShotAt[i]( 
+          now + config.timers[i].delay, config.timers[i].period_msec);
       else
-        call TriggerTimer.startPeriodicAt[i](now + delay, config.timers[i].period_msec);
+        call TriggerTimer.startPeriodicAt[i](
+          now + config.timers[i].delay, config.timers[i].period_msec);
     }
   }
   
@@ -283,13 +284,13 @@ implementation {
     // separator edge having sender = INVALID_SENDER and receiver = problem number.
     // That separator edge we are now looking for!
     idx = 0;
-    while ( problemSet[idx].sender != 0 &&
+    while ( problemSet[idx].receiver != 0 &&  // do not run past the last edge (PROBLEMSET_END)
             ! ( problemSet[idx].sender == INVALID_SENDER && 
                 problemSet[idx].receiver == config.problem_idx ) ) {
       ++idx;
     }
     // In case we haven't found any benchmark with the requested id, kill the mote.
-    if ( problemSet[idx].sender == 0 ) {
+    if ( problemSet[idx].receiver == 0 ) {
       SET_STATE( STATE_INVALID )
       return;
     } else { 

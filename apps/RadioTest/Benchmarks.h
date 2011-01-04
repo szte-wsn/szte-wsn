@@ -45,7 +45,7 @@
 #define _BMARK_START_(id) {INVALID_SENDER,(id),{0,0},{0,0,0,0,0},{0,0},0,0},  
 #define _BMARK_END_ ,
 
-#define PROBLEMSET_END   {0,0,{0,0},{0,0,0,0,0},{0,0},0,0}
+#define PROBLEMSET_END    {INVALID_SENDER,0,{0,0},{0,0,0,0,0},{0,0},0,0}
 
 #define INVALID_SENDER  AM_BROADCAST_ADDR
 #define ALL             AM_BROADCAST_ADDR
