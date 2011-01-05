@@ -79,7 +79,11 @@ public class BenchmarkController implements MessageListener {
 	  maxMoteId = motecount;
 	  this.init(stream);
 	}
-	
+
+  public void setMotecount(final int motecount) {
+    maxMoteId = motecount;
+  }
+  
 	private void init(PrintStream stream) {
 	  mif = new MoteIF();
     mif.registerListener(new SyncMsgT(),this);

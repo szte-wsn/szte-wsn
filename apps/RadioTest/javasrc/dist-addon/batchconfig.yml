@@ -1,0 +1,42 @@
+config: {bmark: 10, time: 1000}
+---
+config: {bmark: 10, time: 2000}
+---
+config: {bmark: 10, time: 1000}
+forces: [ack]
+---
+config: {bmark: 10, time: 1000}
+forces: [bcast]
+---
+config: {bmark: 15, time: 1000, randstart: 30}
+---
+config: {bmark: 30, time: 1000}
+timers:
+ - t1: [1,  50, 200]
+ - t2: [1, 500, 100]
+---
+config: {bmark: 30, time: 1000}
+timers:
+ - t1: [0, 0, 200]
+ - t2: [0, 0, 100]
+---
+config: {bmark: 34, time: 1000}
+timers:
+ - t1: [0, 10, 100]
+ - t2: [0, 20, 200]
+ - t3: [0, 30, 300]
+---
+config: {bmark: 50, time: 1000}
+timers:
+ - t1: [0, 10, 100]
+forces: [ack]
+---
+config: {bmark: 50, time: 1000}
+timers:
+ - t1: [0, 10, 100]
+forces: [bcast]
+---
+config: {bmark: 53, time: 1000}
+forces: [ack]
+---
+config: {bmark: 10, time: 1000}

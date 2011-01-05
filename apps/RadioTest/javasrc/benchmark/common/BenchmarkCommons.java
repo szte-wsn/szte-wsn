@@ -47,6 +47,10 @@ public class BenchmarkCommons {
   public static String xmlFooter() {
     return "</resultset>";
   }
+
+  public static String xmlTestcaseError(final String s) {
+    return "<error>" + s + "</error>";
+  }
   
   public static StatT getStatFromMessage(final DataMsgT rmsg) {
     StatT s = new StatT();

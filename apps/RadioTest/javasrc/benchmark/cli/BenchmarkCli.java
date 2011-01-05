@@ -365,8 +365,7 @@ public class BenchmarkCli {
             rbr.printResults(System.out,false);
         } else {
           System.exit(1);
-        } 
-      
+        }       
       } else {
         throw new MissingOptionException("Invalid program arguments, use --help for help!");
       }
