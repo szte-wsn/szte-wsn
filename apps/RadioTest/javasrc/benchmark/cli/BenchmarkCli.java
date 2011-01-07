@@ -35,20 +35,25 @@
 package benchmark.cli;
 
 import benchmark.common.*;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
 
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-import java.io.PrintStream;
 import org.apache.commons.cli.*;
 
 public class BenchmarkCli {
 
-  private static int def_runtimes[] = { 0, 1000, 20 };
-  private static int def_timers[] =   { 1, 0, 100 };
+  private BenchmarkController ctrl;
 
-  public static Options opt;
+  public BenchmarkCli() {
+    ctrl = new BenchmarkController();
+  }
 
-  public static void printHelp() {
+  /**
+   * Print out the help information
+   */
+  public static void printHelp(final Options opt) {
     
     HelpFormatter f = new HelpFormatter();
     System.out.println("Usage scenarios:");
@@ -82,6 +87,7 @@ public class BenchmarkCli {
     opt3.addOption(opt.getOption("dload"));
     opt3.addOption(opt.getOption("dbg"));
     opt3.addOption(opt.getOption("mc"));
+    opt3.addOption(opt.getOption("xml"));
     System.out.println();
     System.out.println("4. Only download data from the motes (if data available).");
     System.out.println("--------------------------------------------------------------------");
@@ -107,8 +113,11 @@ public class BenchmarkCli {
     
   }
 
-  private static void initOptions() {
-    opt = new Options();
+  /**
+   * Construct the Options opt appropriate for
+   * the Apache CLI command-line interpreter.
+   */
+  private static void initOptions(Options opt) {
 
     // Batch related options
     Option batchfile = OptionBuilder
@@ -135,30 +144,36 @@ public class BenchmarkCli {
     Option randomstart = OptionBuilder
             .withArgName("number")
             .hasArg()
-            .withDescription("Random start delay in millisecs. [default: " + def_runtimes[0] + " msec]")
+            .withDescription("Random start delay in millisecs. [default: " +
+              BenchmarkCommons.DEF_RANDSTART + " msec]")
             .withLongOpt("randomstart")
             .create("rs");
 
     Option runtime = OptionBuilder
             .withArgName("normal")
             .hasArg()
-            .withDescription("The benchmark running time in millisecs. [default: " + def_runtimes[1] + " msec]")
+            .withDescription("The benchmark running time in millisecs. " +
+              "[default: " + BenchmarkCommons.DEF_RUNTIME + " msec]")
             .withLongOpt("time")
             .create("t");
 
     Option lastchance = OptionBuilder
             .withArgName("number")
             .hasArg()
-            .withDescription("The grace time period after test completion for last-chance reception. [default : " + def_runtimes[2] + " msec]")
+            .withDescription("The grace time period after test completion for" +
+              " last-chance reception. [default : " +
+              BenchmarkCommons.DEF_LASTCHANCE + " msec]")
             .withLongOpt("lastchance")
             .create("lc");
 
-    // Timer-related option
-    String deftimer = def_timers[0] + "," + def_timers[1] + "," + def_timers[2];
     Option trtimers = OptionBuilder
             .withArgName("timer config list")
             .hasArg()
-            .withDescription("Trigger timer configuration index:isoneshot,maxrandomdelay,period.  [default : 1:" + deftimer + " ]")
+            .withDescription("Trigger timer configuration " +
+              "index:isoneshot,maxrandomdelay,period.  [default : 1:" +
+              (BenchmarkCommons.DEF_TIMER_ONESHOT ? "1" : "0") +
+              BenchmarkCommons.DEF_TIMER_DELAY +
+              BenchmarkCommons.DEF_TIMER_PERIOD + " ]")
             .withLongOpt("triggers")
             .create("tr");
 
@@ -202,41 +217,143 @@ public class BenchmarkCli {
     opt.addOption("dbg", false, "Download also debug information. [default : false]");
 
   }
-  
+
+  public boolean doReset() {
+    System.out.print("> Reset all motes   ... ");
+    try {
+      ctrl.reset();
+      System.out.println("OK");
+      return true;
+    } catch (BenchmarkController.MessageSendException ex) {
+      System.out.println("FAIL");
+      return false;
+    }
+  }
+
+  public boolean doSync() {
+    System.out.print("> Synchronize motes ... ");
+    try {
+      ctrl.syncAll();
+      System.out.println("OK");
+      return true;
+    } catch (BenchmarkController.CommunicationException ex) {
+      System.out.println("FAIL");
+      System.out.println("  " + ex.getMessage() );
+      return false;
+    }
+  }
+
+
+  public boolean doDownload(final int maxMoteId) {
+    System.out.print("> Downloading data  ... ");
+    try {
+      ctrl.download();
+      System.out.println("OK");
+      return true;
+    } catch (BenchmarkController.CommunicationException ex) {
+      System.out.println("FAIL");
+      System.out.println("  " + ex.getMessage() );
+      return false;
+    }
+  }
+
+  public boolean doDownloadDebug(final int maxMoteId) {
+    System.out.print("> Downloading debug ... ");
+    try {
+      ctrl.download_debug();
+      System.out.println("OK");
+      return true;
+    } catch (BenchmarkController.CommunicationException ex) {
+      System.out.println("FAIL");
+      System.out.println("  " + ex.getMessage() );
+      return false;
+    }
+  }
+
+  public boolean doSetup(final SetupT st) {
+    System.out.print("> Setting up motes  ... ");
+    try {
+      ctrl.setup(st);
+      System.out.println("OK");
+      return true;
+    } catch (BenchmarkController.MessageSendException ex) {
+      System.out.println("FAIL");
+      return false;
+    }
+  }
+
+  public boolean doRun() {
+    System.out.print("> Running benchmark ... ");
+    try {
+      ctrl.run();
+      System.out.println("OK");
+      return true;
+    } catch (BenchmarkController.MessageSendException ex) {
+      System.out.println("FAIL");
+      return false;
+    }
+  }
+
+  public void doPrintXml(final String filename) {
+    PrintStream ps;
+    try {
+      ps = new PrintStream(filename);
+      ps.println(BenchmarkCommons.xmlHeader());
+      this.ctrl.getResults().printXml(ps);
+      ps.println(BenchmarkCommons.xmlFooter());
+      ps.close();
+    } catch (FileNotFoundException ex) {
+      System.out.println("Cannot open " + filename + " for writing!");
+    } 
+  }
+
+  public void doPrint() {
+    this.ctrl.getResults().print(System.out);
+  }
+
 	public static void main (String[] args)
   {
     try {
-      initOptions();
+      // Make the options and parse it
+      Options opt = new Options();
+      BenchmarkCli.initOptions(opt);
+      
       BasicParser parser = new BasicParser();
       CommandLine cl = parser.parse(opt, args);
 
       // Help request -- if present, do nothing else.
       // -----------------------------------------------------------------------
       if ( cl.hasOption('h') ) {
-        printHelp();
+        BenchmarkCli.printHelp(opt);
       }
       // Reset request -- if present, do nothing else.
       // -----------------------------------------------------------------------
       else if ( cl. hasOption('r') ) {
-        BenchmarkController rbr = new BenchmarkController((short)0);
-        rbr.reset();
+        BenchmarkCli cli = new BenchmarkCli();
+        cli.doReset();
       }
       // Download request
       // -----------------------------------------------------------------------
       else if ( cl.hasOption("dload") ) {
       
-        int motecount = cl.hasOption("mc") 
+        int maxmoteid = cl.hasOption("mc")
                                 ? Integer.parseInt(cl.getOptionValue("mc")) 
                                 : 1;
-        if ( motecount < 1 )
+        if ( maxmoteid < 1 )
           throw new MissingOptionException("Invalid number of motes specified!");
-      
-        BenchmarkController rbr = new BenchmarkController(motecount);
-        if ( rbr.sync() &&
-             rbr.download() &&
-             (cl.hasOption("dbg") ? rbr.download_debug() : true) )
-          rbr.printResults(System.out,false);
-        
+
+        // Do what needs to be done
+        BenchmarkCli cli = new BenchmarkCli();
+        if ( cli.doSync() &&
+             cli.doDownload(maxmoteid) &&
+             (cl.hasOption("dbg") ? cli.doDownloadDebug(maxmoteid) : true) )
+        {
+          // Dump results to XML or STDOUT
+          if ( cl.hasOption("xml") )
+            cli.doPrintXml(cl.getOptionValue("xml"));
+          else
+            cli.doPrint();
+        }
       }
       // Batch request
       // -----------------------------------------------------------------------
@@ -246,7 +363,7 @@ public class BenchmarkCli {
         
         BenchmarkBatch rbb = new BenchmarkBatch(bfile,ofile);
         rbb.run();
-     
+
       }
       // Command line control
       // -----------------------------------------------------------------------
@@ -256,21 +373,21 @@ public class BenchmarkCli {
         if ( problemidx < 0 )
           throw new MissingOptionException("Invalid problem specified!");
   
-        int runtimemsec = cl.hasOption('t') 
-                                ? Integer.parseInt(cl.getOptionValue("t")) 
-                                : def_runtimes[1];
-        if ( runtimemsec <= 0 )
-          throw new MissingOptionException("Invalid runtime specified!");
-  
         int startdelay = cl.hasOption("rs") 
                                 ? Integer.parseInt(cl.getOptionValue("rs")) 
-                                : def_runtimes[0];
+                                : BenchmarkCommons.DEF_RANDSTART;
         if ( startdelay < 0 )
             throw new MissingOptionException("Invalid random start time specified!");
-  
+
+        int runtimemsec = cl.hasOption('t')
+                                ? Integer.parseInt(cl.getOptionValue("t"))
+                                : BenchmarkCommons.DEF_RUNTIME;
+        if ( runtimemsec <= 0 )
+          throw new MissingOptionException("Invalid runtime specified!");
+
         int lchance = cl.hasOption("lc") 
                                 ? Integer.parseInt(cl.getOptionValue("lc")) 
-                                : def_runtimes[2];
+                                : BenchmarkCommons.DEF_LASTCHANCE;
         if ( lchance < 0 )
           throw new MissingOptionException("Invalid last chance time specified!");        
 
@@ -280,10 +397,10 @@ public class BenchmarkCli {
         if ( lplwakeup < 0 )
           throw new MissingOptionException("Invalid wakeup interval specified!");
  
-        int motecount = cl.hasOption("mc") 
+        int maxmoteid = cl.hasOption("mc")
                                 ? Integer.parseInt(cl.getOptionValue("mc")) 
                                 : 1;
-        if ( motecount < 1 )
+        if ( maxmoteid < 1 )
           throw new MissingOptionException("Invalid number of motes specified!");
  
         // Trigger timer initialization values
@@ -292,9 +409,9 @@ public class BenchmarkCli {
         long period[] = new long[BenchmarkStatic.MAX_TIMER_COUNT];
 
         for( int i = 0; i < BenchmarkStatic.MAX_TIMER_COUNT; ++i ) {
-          ios[i] = (byte)def_timers[0];
-          delay[i] = def_timers[1];
-          period[i] = def_timers[2];
+          ios[i] = BenchmarkCommons.DEF_TIMER_ONESHOT ? 1 : 0;
+          delay[i] = BenchmarkCommons.DEF_TIMER_DELAY;
+          period[i] = BenchmarkCommons.DEF_TIMER_PERIOD;
         }
         
         if ( cl.hasOption("tr") ) {
@@ -347,25 +464,23 @@ public class BenchmarkCli {
         st.set_timers_period_msec(period);
         st.set_lplwakeup(lplwakeup);
 
-        BenchmarkController rbr = new BenchmarkController(motecount);
-        if ( rbr.reset() && 
-             rbr.setup(st) &&
-             rbr.run() &&
-             rbr.download() &&
-             (cl.hasOption("dbg") ? rbr.download_debug() : true)
-             ) {
-          
-          if (cl.hasOption("xml")) {
-            PrintStream ps = new PrintStream(cl.getOptionValue("xml"));
-            ps.println(BenchmarkCommons.xmlHeader());
-            rbr.printResults(ps,true);
-            ps.println(BenchmarkCommons.xmlFooter());
-          }
+        // Do what needs to be done
+        BenchmarkCli cli = new BenchmarkCli();
+        if (cli.doReset()             &&
+            cli.doSetup(st)           &&
+            cli.doSync()              &&
+            cli.doRun()               &&
+            cli.doDownload(maxmoteid) &&
+            (cl.hasOption("dbg") ? cli.doDownloadDebug(maxmoteid) : true) )
+        {
+
+          // Dump results to XML or STDOUT
+          if ( cl.hasOption("xml") )
+            cli.doPrintXml(cl.getOptionValue("xml"));
           else
-            rbr.printResults(System.out,false);
-        } else {
-          System.exit(1);
-        }       
+            cli.doPrint();
+        }
+
       } else {
         throw new MissingOptionException("Invalid program arguments, use --help for help!");
       }
