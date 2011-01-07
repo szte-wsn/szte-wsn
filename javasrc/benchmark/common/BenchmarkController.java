@@ -34,279 +34,324 @@
 
 package benchmark.common;
 
-import java.io.*;
 import java.util.concurrent.locks.*;
 import java.util.concurrent.TimeUnit;
-import java.util.Vector;
 import net.tinyos.message.*;
-import java.util.Calendar;
 
-
+/**
+ * The class that is able to communicate with the LinkBenchmark
+ * TinyOS application.
+ *
+ * This class is responsible for sending and receiving control/data messages
+ * to/from the motes via a BaseStation mote.
+ *
+ * It is designed to be minimal and full, so everything is functional yet user-
+ * friendlyness must be implemented elsewhere.
+ */
 public class BenchmarkController implements MessageListener {
 	
 	private MoteIF  mif;
-  PrintStream     ostream;
-
-  private enum Stage {
-    IDLE, RUNNING, DOWNLOAD
-  }
-  private Stage   stage;
-  private SetupT  config;
-  private long    running_time;
-  
-  // Memory for downloaded data
-  private Vector< StatT >   stats;
-  private long[]            debuglines;
 
   // Needed for proper downloading
-  final Lock lock = new ReentrantLock();
-  final Condition answered = lock.newCondition(); 
-  private boolean handshake;
-  private static final short  MAXPROBES   = 3;
-  private static final int    MAXTIMEOUT  = 500;
+  final Lock                  lock        = new ReentrantLock();
+  final Condition             answered    = lock.newCondition();
+  private boolean             handshake;
+  private static int          currentMote = 1;
+  private static short        currentData = 0;
 
-  private static int currentMote = 1, currentData = 0;
-  private static int maxMoteId   = 1, edgecount   = 0;
-  
-  public BenchmarkController(final int motecount)
-	{
-    maxMoteId = motecount;
-	  this.init(System.out);
-	}
-	
-	public BenchmarkController(final int motecount, PrintStream stream)
-	{
-	  maxMoteId = motecount;
-	  this.init(stream);
-	}
+  // Public to be able to set it easily
+  public static final short   MAXPROBES   = 3;
+  public static final short   MAXTIMEOUT  = 500;
 
-  public void setMotecount(final int motecount) {
-    maxMoteId = motecount;
-  }
+  private BenchmarkResult     results;
   
-	private void init(PrintStream stream) {
-	  mif = new MoteIF();
+  // These values are updated during the synchronization phase
+  private int                 maxMoteId   = 1;
+  private int                 edgecount   = 0;
+
+  public class MessageSendException extends Exception {};
+  public class CommunicationException extends Exception {
+    public CommunicationException(String message) {
+      super(message);
+    }    
+  };
+
+  /**
+   * Contruct a controller.
+   * 
+   * @param motecount How many motes are used?
+   */
+  public BenchmarkController()
+	{
+    mif = new MoteIF();
     mif.registerListener(new SyncMsgT(),this);
     mif.registerListener(new DataMsgT(),this);
-    
-    stage = Stage.IDLE;
-    ostream = stream;
+
+    maxMoteId = 1;
+    results = new BenchmarkResult();
 	}
 
-	public boolean reset()  
+  /**
+   * Set the maximal mote id in the network.
+   * 
+   * @param maxMoteId The new value
+   */
+  public void updateMoteCount(final int maxMoteId) {
+    this.maxMoteId = maxMoteId;
+    this.edgecount = 0;
+  }
+
+  /**
+   * Get the results
+   * @return an object containing the current results
+   */
+  public BenchmarkResult getResults() {
+    return this.results;
+  }
+
+  /**
+   * Send a RESET control message to the network.
+   * It is a broadcast message, so every mote should receive it.
+   * 
+   * @throws MessageSendException if an error occured (message is failed to send)
+   */
+	public void reset() throws MessageSendException
   {
     CtrlMsgT cmsg = new CtrlMsgT();
     cmsg.set_type(BenchmarkStatic.CTRL_RESET);
-    ostream.print("> Reset all motes   ... ");
 		try {
 			mif.send(MoteIF.TOS_BCAST_ADDR,cmsg);
 			Thread.sleep((int)(500));
-      stage = Stage.IDLE;
-      ostream.println("OK");
-      return true;
 		} catch(Exception e) {
-		  ostream.println("FAIL");
-      return false;
+      throw new MessageSendException();
     }
 	}
 
-  public boolean setup(final SetupT conf) {
-  
-    this.config = conf;
+  /**
+   * Send a SETUP control message to the network.
+   * It is a broadcast message, so every mote should receive it.
+   *
+   * @param config The benchmark configuration
+   * @throws MessageSendException if an error occured (message is failed to send)
+   */
+  public void setup(final SetupT config) throws MessageSendException {
 
+    this.results.setConfig(config);
+    
     // Create an appropriate setup message
-    SetupMsgT smsg = BenchmarkCommons.createSetupMessage(config);
+    SetupMsgT smsg = new SetupMsgT();
+
+    smsg.set_config_problem_idx(config.get_problem_idx());
+    smsg.set_config_pre_run_msec(config.get_pre_run_msec());
+    smsg.set_config_runtime_msec(config.get_runtime_msec());
+    smsg.set_config_post_run_msec(config.get_post_run_msec());
+    smsg.set_config_flags(config.get_flags());
+
+    smsg.set_config_timers_isoneshot(config.get_timers_isoneshot());
+    smsg.set_config_timers_delay(config.get_timers_delay());
+    smsg.set_config_timers_period_msec(config.get_timers_period_msec());
+
+    smsg.set_config_lplwakeup(config.get_lplwakeup());
     smsg.set_type(BenchmarkStatic.SETUP_BASE);
-    
-    running_time =  config.get_pre_run_msec() + 
-                    config.get_runtime_msec() + 
-                    config.get_post_run_msec();
-    
-    ostream.println(BenchmarkCommons.setupAsString(config));
-    ostream.print("> Setting up motes  ... ");
-   
-    // SYNC-request control message
-    CtrlMsgT cmsg = new CtrlMsgT();
-    cmsg.set_type(BenchmarkStatic.CTRL_SETUP_SYN);
-   
-    lock.lock();
+
    	try {
 			mif.send(MoteIF.TOS_BCAST_ADDR,smsg);
       Thread.sleep((int)(500));
-      
-      for ( currentMote = 1; currentMote <= maxMoteId ; ++currentMote ) {
-        if ( !requestSync() )
-          return false;
-      }
-      ostream.println("OK");
-      return true;
 		} catch(Exception e) {
-		  return false;
-    } finally {
-      lock.unlock();
+		  throw new MessageSendException();
     }
 	}
 
-  public boolean run() { 
-
-    CtrlMsgT cmsg = new CtrlMsgT();
-    cmsg.set_type(BenchmarkStatic.CTRL_START);
-    // We are now in running stage
-    stage = Stage.RUNNING;
-
-    ostream.print("> Running benchmark ... ");
-		try {
-			mif.send(MoteIF.TOS_BCAST_ADDR,cmsg);
-      // wait for test completion + 100 msecs
-      Thread.sleep((int)(running_time + 100));
-      ostream.println("OK");
-      return true;
-		} catch(Exception e) {
-		  ostream.println("FAIL");
-      return false;
+  /**
+   * Synchronize all motes in the network having mote id from 1 to
+   * the 'motecount' value specified either in the constructor or set by the
+   * setMoteCount setter method.
+   *
+   * By synchronizing, we can detect failed motes (not answering), improperly
+   * configured motes (wrong answers), and get the real motecount based on the
+   * active benchmark configured in the network.
+   *
+   * @throws CommunicationException if synchronization error happens
+   */
+  public void syncAll() throws CommunicationException {
+    currentMote = 1;
+    while ( currentMote <= maxMoteId ) {
+      if ( !sync(currentMote) ) {
+        throw new CommunicationException(
+                "Synchronization Error with Mote ID: " + currentMote + "." +
+                " -- Possible reasons: Not operational, not configured (Only LED 1 On), badly configured (No LEDS On)"
+                );
+      }
+      else
+        ++currentMote;
     }
   }
 
-  public boolean download()
-	{
-    // We are now in downloading stage
-    stage = Stage.DOWNLOAD;
-    stats = new Vector<StatT>(edgecount);
-    for( int i = 0; i< edgecount; ++i)
-      stats.add(new StatT());
+  /**
+   * Send a SETUP_SYN control message to the specified mote.
+   * It is a direct addressing message, so only the specified mote should
+   * receive, and answer it.
+   *
+   * The handshake is probed MAXPROBES times using MAXTIMEOUT waiting for each.
+   *
+   * @param moteId The mote's id whom to send the synchronization request.
+   * @return TRUE if the mote answered to our sync request, FALSE otherwise
+   */
+  public boolean sync(final int moteId) {
 
-    ostream.print("> Downloading data  ... "); 
-    for ( currentMote = 1; currentMote <= maxMoteId ; ++currentMote ) {
-      for ( currentData = 0; currentData < edgecount; ++currentData ) {
-        if ( !requestData(BenchmarkStatic.CTRL_STAT_REQ,"STAT") )
-          return false;      
-      }
-    }
-    ostream.println("OK");
-    return true;
-	}
-
-  public boolean download_debug()
-	{
-    // We are now in downloading stage
-    stage = Stage.DOWNLOAD;
-    debuglines = new long[maxMoteId];
-
-    ostream.print("> Downloading debug ... ");
-    for ( currentMote = 1; currentMote <= maxMoteId ; ++currentMote ) {
-      if ( !requestData(BenchmarkStatic.CTRL_DBG_REQ, "DEBUG") )
-        return false;
-    }
-    ostream.println("OK");
-    return true;
-	}
-
-  public boolean sync() {
-    return this.requestSync();
-  }
-
-  private boolean requestSync() {
-
-    lock.lock();
+    // Create a SYNC-request control message
     CtrlMsgT cmsg = new CtrlMsgT();
     cmsg.set_type(BenchmarkStatic.CTRL_SETUP_SYN);
+
+    lock.lock();
     handshake = false;
     for( short probe = 0; !handshake && probe < MAXPROBES; ++probe ) {
       try {
- 	  	  mif.send(currentMote,cmsg);
+ 	  	  mif.send(moteId,cmsg);
  	  	  answered.await(MAXTIMEOUT,TimeUnit.MILLISECONDS);
- 	    } catch(IOException e) {
-        break;
-      } catch ( InterruptedException e ) {
+ 	    } catch(Exception e) {
         break;
       }
-    } 
-    if ( !handshake )
-      ostream.println("SYNC TIMEOUT, MOTE : " + currentMote);
+    }
     lock.unlock();
     return handshake;
   }
 
-  private boolean requestData(final short type, final String str) {
+  /**
+   * Send a START control message to the network.
+   * It is a broadcast message, so every mote should receive it.
+   *
+   * @throws MessageSendException if an error occured (message is failed to send)
+   */
+  public void run() throws MessageSendException {
 
+    // Create a START control message
+    CtrlMsgT cmsg = new CtrlMsgT();
+    cmsg.set_type(BenchmarkStatic.CTRL_START);
+
+    try {
+			mif.send(MoteIF.TOS_BCAST_ADDR,cmsg);
+      // Wait for test completion + 100 msecs
+      Thread.sleep(
+              (int)(BenchmarkCommons.getRuntime(this.results.getConfig()) + 100)
+              );
+		} catch(Exception e) {
+      throw new MessageSendException();
+    }
+  }
+
+  /**
+   * Download the statistics from the motes.
+   *
+   * @throws CommunicationException
+   */
+  public void download() throws CommunicationException
+	{
+    for ( currentMote = 1; currentMote <= maxMoteId ; ++currentMote ) {
+      for ( currentData = 0; currentData < edgecount; ++currentData ) {
+        if ( !requestData(currentMote,currentData,BenchmarkStatic.CTRL_STAT_REQ) ) {
+          throw new CommunicationException(
+                "Download Error with Mote ID: " + currentMote +
+                ", stat index: " + currentData + "."
+                );
+
+        }
+      }
+    }
+	}
+
+  /**
+   * Download the debug information from the motes.
+   *
+   * @throws CommunicationException
+   */
+  public void download_debug() throws CommunicationException
+	{
+    for (currentMote = 1; currentMote <= maxMoteId; ++currentMote) {
+      if (!requestData(currentMote, currentData, BenchmarkStatic.CTRL_DBG_REQ)) {
+        throw new CommunicationException(
+                "Download Debug Error with Mote ID: " + currentMote + ".");
+      }
+    }
+
+	}
+
+  /**
+   * Send a data requesting control message to a specific mote with a specified
+   * data index. Data can be either the statistics on a specific edge, or the debug
+   * information on the mote.
+   *
+   * @param moteId The mote we are targeting
+   * @param dataidx The index of the data (only used when statistics are downloaded)
+   * @param type BenchmarkStatic.CTRL_STAT_REQ or BenchmarkStatic.CTRL_DBG_REQ
+   * @return TRUE if data has been received, FALSE otherwise
+   */
+  private boolean requestData(final int moteId, final short dataidx, final short type) {
+
+    // Create a download request control message
     CtrlMsgT cmsg = new CtrlMsgT();
     cmsg.set_type(type);
-    cmsg.set_data_req_idx((short)currentData);
-    handshake = false;
+    cmsg.set_data_req_idx(dataidx);
+    
     lock.lock();
+    handshake = false;
     for( short probe = 0; !handshake && probe < MAXPROBES; ++probe ) {
       try {
- 	  	  mif.send(currentMote,cmsg);
+ 	  	  mif.send(moteId,cmsg);
  	  	  answered.await(MAXTIMEOUT,TimeUnit.MILLISECONDS);
- 	    } catch(IOException e) {
-        break;
-      } catch ( InterruptedException e ) {
+ 	    } catch(Exception e) {
         break;
       }
-    } 
-    if ( !handshake )
-      ostream.println("TIMEOUT, MOTE : " + currentMote + " " + str + " : " + currentData);
+    }
     lock.unlock();
-    return handshake;
-    
+    return handshake;    
   }
-  
+
+  /**
+   * The event which is triggered on message reception. We can receive messages
+   * in two situations:
+   *  - either in the synchronization phase (sync acknowledgements)
+   *  - or in the downloading phases (stats or debug info)
+   *
+   * @param dest_addr The source mote id of the message
+   * @param msg The message received
+   */
   public void messageReceived(int dest_addr,Message msg)
 	{
 	  lock.lock();
-    if ( msg instanceof SyncMsgT && stage == Stage.IDLE ) {
+    // Received a SyncMsgT
+    if ( msg instanceof SyncMsgT ) {
       SyncMsgT smsg = (SyncMsgT)msg;
       if ( smsg.get_type() == BenchmarkStatic.SYNC_SETUP_ACK ) {
         handshake = true;
         edgecount = smsg.get_edgecnt();
         if ( smsg.get_maxmoteid() > maxMoteId )
           maxMoteId = smsg.get_maxmoteid();
-        answered.signal();
-      }
-     
-    } else if ( msg instanceof DataMsgT && stage == Stage.DOWNLOAD ) {
-    
-      DataMsgT rmsg = (DataMsgT)msg;
-      if ( rmsg.get_type() == BenchmarkStatic.DATA_STAT_OK && 
-           currentData == rmsg.get_data_idx() ) {
-       
-        stats.set(currentData,
-                  BenchmarkCommons.mergeStats(
-                    stats.get(currentData),
-                    BenchmarkCommons.getStatFromMessage(rmsg)
-                  )
-                 );
-        
-        handshake = true;
-        answered.signal();
-  
-      } else if ( rmsg.get_type() == BenchmarkStatic.DATA_DBG_OK ) {
 
-        debuglines[currentMote-1] = rmsg.get_payload_debug();
-        handshake = true;
+        // update the results structure
+        this.results.cleanResize(maxMoteId, edgecount);
         answered.signal();
+
       }
+    // Received a DataMsgT
+    } else if ( msg instanceof DataMsgT ) {
+    
+      DataMsgT rmsg = (DataMsgT) msg;
+      switch (rmsg.get_type()) {
+        case BenchmarkStatic.DATA_STAT_OK:
+          // Process the message only if this message is the answer for our query
+          // This prevents us from makeing corrupt statistics.
+          if (currentData == rmsg.get_data_idx()) {
+            this.results.appendStatFromMessage(currentData, rmsg);
+          }
+          break;
+        case BenchmarkStatic.DATA_DBG_OK:
+          this.results.appendDebugInfoFromMessage(currentMote, rmsg);
+          break;
+      }
+      handshake = true;
+      answered.signal();
     }
     lock.unlock();
 	}
-
-  public void printResults(PrintStream outstream, boolean asXml) {
-    if ( asXml ) {
-      Calendar calendar = Calendar.getInstance();
-
-      outstream.println("<testresult date=\"" + calendar.getTime().toString() + "\">");
-      outstream.println(BenchmarkCommons.setupAsXml(config));
-      outstream.println(BenchmarkCommons.statsAsXml(stats));
-      if ( debuglines != null )
-        outstream.println(BenchmarkCommons.debugAsXml(debuglines));
-      outstream.println("</testresult>");
-      
-    } else {
-    
-      outstream.println(BenchmarkCommons.statsAsString(stats));
-      if ( debuglines != null )
-        outstream.println(BenchmarkCommons.debugAsString(debuglines));
-    }
-  }
-
 }

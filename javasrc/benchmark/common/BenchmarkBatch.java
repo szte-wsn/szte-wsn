@@ -42,8 +42,6 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.yaml.snakeyaml.Yaml;
 
 public class BenchmarkBatch {
@@ -51,10 +49,6 @@ public class BenchmarkBatch {
   private List<SetupT>  setups;
   private List<Integer> motecounts;
   private String        outputfile;
-
-
-  private static short def_runtimes[] = { 0, 1000, 20 };
-  private static short def_timers[] =   { 1, 0, 100 };
 
   private final String S_CONFIG           = "config";
   private final String S_CONFIG_BMARK     = "bmark";
@@ -115,13 +109,13 @@ public class BenchmarkBatch {
         setup.set_pre_run_msec(
                 bconfig.containsKey(S_CONFIG_RANDSTART) ?
                 bconfig.get(S_CONFIG_RANDSTART) :
-                def_runtimes[0]);
+                BenchmarkCommons.DEF_RANDSTART);
 
         setup.set_runtime_msec(bconfig.get(S_CONFIG_TIME).shortValue());
         setup.set_post_run_msec(
                 bconfig.containsKey(S_CONFIG_LC) ?
                 bconfig.get(S_CONFIG_LC) :
-                def_runtimes[2]);
+                BenchmarkCommons.DEF_LASTCHANCE);
 
         setup.set_lplwakeup(bwakeup);
 
@@ -142,9 +136,9 @@ public class BenchmarkBatch {
         long period[] = new long[BenchmarkStatic.MAX_TIMER_COUNT];
 
         for( int i = 0; i < BenchmarkStatic.MAX_TIMER_COUNT; ++i ) {
-          ios[i] = def_timers[0];
-          delay[i] = def_timers[1];
-          period[i] = def_timers[2];
+          ios[i] = BenchmarkCommons.DEF_TIMER_ONESHOT ? 1 : 0;
+          delay[i] = BenchmarkCommons.DEF_TIMER_DELAY;
+          period[i] = BenchmarkCommons.DEF_TIMER_PERIOD;
         }
 
         if (btimers != null) {
@@ -196,31 +190,36 @@ public class BenchmarkBatch {
     try {
       ps = new PrintStream(this.outputfile);
       ps.println(BenchmarkCommons.xmlHeader());
-      String newline = System.getProperty("line.separator");
 
-      BenchmarkController rbr = new BenchmarkController(0);
+      BenchmarkController ctrl = new BenchmarkController();
       int i = 0;
+      
+      // Run each benchmark sequentially
       for (SetupT s : setups) {
-        rbr.setMotecount(this.motecounts.get(i));
+        ctrl.updateMoteCount(this.motecounts.get(i));
         String error = "";
-        error += rbr.reset() ? "" : ("Reset error." + newline);
-        error += rbr.setup(s) ? "" : ("Error during setup phase." + newline);
-        error += rbr.run() ? "" : ("Error during running phase." + newline);
-        error += rbr.download() ? "" : ("Error during downloading phase." + newline);
-        error += rbr.download_debug() ? "" : ("Error during debug downloading phase." + newline);
 
-        if ( error.isEmpty() )
-          rbr.printResults(ps, true);
-        else
-          ps.print(BenchmarkCommons.xmlTestcaseError(error));
+        try {
+          ctrl.reset();
+          ctrl.setup(s);
+          ctrl.syncAll();
+          ctrl.run();
+          ctrl.download();
+          ctrl.download_debug();
+        } catch (BenchmarkController.MessageSendException ex) {
+          error += ex.getMessage();
+        } catch (BenchmarkController.CommunicationException ex) {
+          error += ex.getMessage();
+        }
+        ctrl.getResults().printXml(ps);
+        
       }
       ps.println(BenchmarkCommons.xmlFooter());
-      
+      ps.close();
+
     } catch (FileNotFoundException ex) {
       System.out.println("File named " + outputfile + " cannot be created!");
-    } finally {
-      ps.close();
-    }
+    } 
   }
 
 }
