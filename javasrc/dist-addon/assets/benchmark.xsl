@@ -156,6 +156,7 @@
 <!-- END ERROR CHECKING -->
 
       <xsl:apply-templates select="debuglist"/>
+      <xsl:apply-templates select="errorlist"/>
 
     </td>
   </tr>
@@ -250,6 +251,10 @@
     </xsl:choose>
   </xsl:for-each>
   </div>
+</xsl:template>
+
+<xsl:template match="error">
+  <div class="error"><xsl:value-of select="."/></div>
 </xsl:template>
 
 </xsl:stylesheet>

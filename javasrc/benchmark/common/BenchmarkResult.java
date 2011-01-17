@@ -38,24 +38,50 @@ import java.io.PrintStream;
 import java.util.Calendar;
 import java.util.Vector;
 
+/**
+ * This class holds all the results of a benchmark run along with the computed
+ * statistics and any error which may occur during the test run.
+ *
+ */
 public class BenchmarkResult {
 
   private SetupT            config;
   private Vector<StatT>     stats;
   private long[]            debuginfo;
-    
+  private String            error;
+
+  /**
+   * Basic constuctor of a result holder.
+   */
   public BenchmarkResult() {
-    this.config = null;
-    this.stats = null;
-    this.debuginfo = null;
+    this.init(null);
   }
 
+  /**
+   * Construct a result holder with a known configuration.
+   * @param config the configuration
+   */
   public BenchmarkResult(final SetupT config) {
+    this.init(config);
+  }
+
+  /**
+   * Helper function for constructors
+   * @param config the configuration
+   */
+  private void init(final SetupT config) {
     this.config = config;
     this.stats = null;
     this.debuginfo = null;
+    this.error = "";
   }
 
+  /**
+   * Clean the result holder object and make it ready for a new benchmark.
+   *
+   * @param motecount the new benchmark's motecount
+   * @param edgecount the new benchmark's edgecount
+   */
   public void cleanResize(final int motecount, final int edgecount) {
     if ( this.stats != null )
       this.stats.clear();
@@ -69,21 +95,63 @@ public class BenchmarkResult {
     for (int i = 0; i< motecount; ++i ) {
       this.debuginfo[i] = 0;
     }
+
+    this.error = "";
   }
 
+  /**
+   * Set the configuration of the benchmark for the results holder object.
+   * @param config the configuration
+   */
   public void setConfig(final SetupT config) {
     this.config = config;
   }
 
+  /**
+   * Get the actual benchmark result's configuration
+   * @return the configuration
+   */
   public SetupT getConfig() {
     return config;
   }
 
+  /**
+   * Set an error indicating that an error occured durint the test run.
+   * @param error the string representation of the error
+   */
+  public void setError(final String error) {
+    this.error = error;
+  }
+
+  /**
+   * Get the error which may have occured.
+   * @return the string representation of the error
+   */
+  public String getError() {
+    return this.error;
+  }
+
+  /**
+   * Append new debug information to existing ones from a message.
+   * Note that the message does not contain the sender's id, that is why
+   * we must explicitly specify it for this function.
+   *
+   * @param idx the mote's id to which this information belongs
+   * @param msg the message holding the information
+   */
   public void appendDebugInfoFromMessage(final int idx, final DataMsgT msg) {
 
     this.debuginfo[idx-1] = msg.get_payload_debug();
   }
 
+  /**
+   * Append new statistics to existing ones from a message.
+   * Note that the message does not contain the sender's id, that is why
+   * we must explicitly specify it for this function.
+   *
+   * @param idx the mote's id to which this information belongs
+   * @param msg the message holding the information
+   */
   public void appendStatFromMessage(final int idx, final DataMsgT msg) {
 
     // Get the new Stat from the message
@@ -143,21 +211,40 @@ public class BenchmarkResult {
     this.stats.set(idx, news);
   }
 
+  /**
+   * Print the current result's configuration into a character stream.
+   *
+   * @param stream the stream
+   */
   public void printConfig(PrintStream stream) {
     stream.println(BenchmarkCommons.setupAsString(this.config));
   }
 
+  /**
+   * Print the current results with debug and error information into a character
+   * stream.
+   *
+   * @param stream the stream
+   */
   public void print(PrintStream stream) {
     stream.println(BenchmarkCommons.statsAsString(this.stats));
     stream.println(BenchmarkCommons.debugsAsString(this.debuginfo));
+    stream.println(BenchmarkCommons.errorAsString(this.error));
   }
 
+  /**
+   * Print the current results with debug and error information into a character
+   * stream with XML formatting.
+   *
+   * @param stream the stream
+   */
   public void printXml(PrintStream stream) {
     Calendar calendar = Calendar.getInstance();
     stream.println("<testresult date=\"" + calendar.getTime().toString() + "\">");
     stream.println(BenchmarkCommons.setupAsXml(config));
     stream.println(BenchmarkCommons.statsAsXml(stats));
     stream.println(BenchmarkCommons.debugsAsXml(debuginfo));
+    stream.println(BenchmarkCommons.errorAsXml(error));
     stream.println("</testresult>");
   }
 
