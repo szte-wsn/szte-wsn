@@ -74,12 +74,11 @@ LinkBenchmark application README
       ant
     in the javasrc directory. This will create a javabin directory in the root directory of the project.
         
-    Then, executing either of the followings
+    Then, executing either of the followings in the javabin folder:
       java -jar Benchmark.jar --help
-      java -jar benchmarkBatch.jar --help
-      ./bmark --help
-      ./batch --help
-    in the javabin folder will give you details on how this application can be used.
+      sh bmark.sh --help
+      ./bmark --help    (if you have chmoded bmark.sh to be executable)
+    which will give you details on how this application can be used.
     
 6. Using the application:
    ----------------------
@@ -92,10 +91,12 @@ LinkBenchmark application README
       export MOTECOM=serial@/dev/ttyUSB2:telosb
       
    Then, execute the following:
-     java Benchmark -p 0
+     java -jar Benchmark.jar -b 10
+     ./bmark -b 10
    which will eventually execute the 0th benchmark, and print the results on your screen. 
    For more options, see 
-     java Benchmark --help
+     java -jar Benchmark.jar --help
+     ./bmark --help
       
 7. Status indicators on 'test-motes':
    ----------------------------------
