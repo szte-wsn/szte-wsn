@@ -23,7 +23,7 @@ div.title_light {
   color: #000000; 
 }
 
-div.debuglist {
+div.debuglist, div.error {
   margin-top: 5px;
   text-align: center;
 }
@@ -103,7 +103,7 @@ span.debug_ok {
   font-weight: bold;
 }
 
-span.debug_fail {
+span.debug_fail, div.error {
   color: #770202;
   padding-left: 5px;
   padding-right: 5px;

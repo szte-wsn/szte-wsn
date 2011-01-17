@@ -75,10 +75,14 @@ public class BenchmarkCommons {
     return "</resultset>";
   }
 
-  public static String xmlTestcaseError(final String s) {
-    return "<error>" + s + "</error>";
-  }
 
+  /**
+   * Generates a multi-line String representation of a benchmark
+   * configuration passed as an argument.
+   *
+   * @param config The configuration
+   * @return the string representation
+   */
   public static String setupAsString(final SetupT config) {
   
     String newline = System.getProperty("line.separator");
@@ -109,7 +113,14 @@ public class BenchmarkCommons {
     out += "]";
     return out;
   }
-  
+
+  /**
+   * Generates an XML representation of a benchmark
+   * configuration passed as an argument.
+   *
+   * @param config The configuration
+   * @return the XML representation
+   */
   public static String setupAsXml(final SetupT config) {
     String out = "<configuration>";
     out +="    <benchidx>" + config.get_problem_idx() + "</benchidx>";
@@ -133,6 +144,12 @@ public class BenchmarkCommons {
     return out;
   }
 
+  /**
+   * Generates a multi-line String representation of the results of a benchmark
+   *
+   * @param stats the collection of the results
+   * @return the string representation
+   */
   public static String statsAsString(final Vector<StatT> stats) {
     String newline = System.getProperty("line.separator");
     String hdr = "  Statistics :\t[ Tri Blg Res | send Succ Fail | sDone Succ Fail | Ack NAck | Recv  Exp Wrng Dupl Frwd Miss | Rem ]";
@@ -164,6 +181,12 @@ public class BenchmarkCommons {
     return hdr + newline + ret;
   }
 
+   /**
+   * Generates an XML representation of the results of a benchmark.
+   *
+   * @param stats the collection of the results
+   * @return the XML representation
+   */
   public static String statsAsXml(final Vector<StatT> stats) {
     String ret = "<statlist>";
     for ( int i = 0; i< stats.size(); ++i ) {
@@ -198,7 +221,13 @@ public class BenchmarkCommons {
     ret += "</statlist>";
     return ret;
   }
-  
+
+  /**
+   * Generates a String representation of the debug information of a benchmark
+   *
+   * @param debuglines the debug information
+   * @return the string representation
+   */
   public static String debugsAsString(final long[] debuglines) {
     String ret = "  Mote debug :\t";
     for( int i = 0; i < debuglines.length; ++i ){
@@ -206,7 +235,13 @@ public class BenchmarkCommons {
     }
     return ret;
   }
-  
+
+  /**
+   * Generates an XML representation of the debug information of a benchmark
+   *
+   * @param debuglines the debug information
+   * @return the XML representation
+   */
   public static String debugsAsXml(final long[] debuglines) {
     String ret = "<debuglist>";
     for( int i = 0; i < debuglines.length; ++i ){
@@ -214,6 +249,24 @@ public class BenchmarkCommons {
     }
     ret += "</debuglist>";
     return ret;
+  }
+
+  /**
+   * Generates a String from the error which may have occured during the benchmark
+   * @param s the error
+   * @return the ready-for-output representation
+   */
+  public static String errorAsString(final String s) {
+    return "  Error :\t" + s;
+  }
+
+  /**
+   * Generates an XML tag from the error which may have occured during the benchmark
+   * @param s the error
+   * @return the ready-for-output XML representation
+   */
+  public static String errorAsXml(final String s) {
+    return "<error>" + s + "</error>";
   }
 
 }

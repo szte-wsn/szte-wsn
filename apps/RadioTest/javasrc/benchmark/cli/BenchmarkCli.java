@@ -243,7 +243,6 @@ public class BenchmarkCli {
     }
   }
 
-
   public boolean doDownload(final int maxMoteId) {
     System.out.print("> Downloading data  ... ");
     try {
@@ -361,9 +360,10 @@ public class BenchmarkCli {
         String bfile = cl.getOptionValue('F');
         String ofile = cl.hasOption('o') ? cl.getOptionValue('o') : "results.xml";
         
-        BenchmarkBatch rbb = new BenchmarkBatch(bfile,ofile);
-        rbb.run();
-
+        BenchmarkBatch rbb = new BenchmarkBatch(ofile);
+        if ( rbb.parse(bfile) ) {
+          rbb.run();
+        }
       }
       // Command line control
       // -----------------------------------------------------------------------
