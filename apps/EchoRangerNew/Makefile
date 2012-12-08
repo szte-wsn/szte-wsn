@@ -1,7 +1,7 @@
 COMPONENT=ApplicationC
 CFLAGS += -Ibpm
 CFLAGS += -Iadc
-CFLAGS += -I$(SZTETOSDIR)/lib/StreamStorage
+CFLAGS += -I$(SZTETOSDIR)/lib/StreamStorage2
 CFLAGS += -I$(SZTETOSDIR)/lib/StorageFrame
 CFLAGS += -I$(SZTETOSDIR)/lib/StreamUploaderSH
 SENSORBOARD=ucsbacoustic
