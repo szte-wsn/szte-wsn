@@ -436,6 +436,7 @@ implementation{
 	
 
 	event void StreamStorageErase.eraseDone(error_t error){
+		call Resource.release();
 		if(status!=OFF){
 			if(call DiagMsg.record()){
 				call DiagMsg.str("SU erDone");
@@ -443,11 +444,8 @@ implementation{
 				call DiagMsg.uint8(WAIT_FOR_BS);
 				call DiagMsg.send();
 			}
-			status=WAIT_FOR_BS;
-			if(call StreamStorageRead.getMinAddress()!=SUCCESS){
-				call Resource.release();
-				post SCStop();
-			}
+			status=COMMAND_PENDING;
+			call Command.sendData(0xffffffff);
 		}
 	}
 	
