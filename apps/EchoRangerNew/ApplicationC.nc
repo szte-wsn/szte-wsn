@@ -50,4 +50,7 @@ implementation{
 	App.LastBuffer -> EchoRangerC.LastBuffer;
 	App.SetGain->EchoRangerC.SetGain;
 	App.SetWait->EchoRangerC.SetWait;
+	
+	components new StreamStorageClientC();
+	App.StreamStorageErase->StreamStorageClientC;
 }

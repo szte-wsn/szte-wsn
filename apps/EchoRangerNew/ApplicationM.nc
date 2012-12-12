@@ -47,6 +47,7 @@ module ApplicationM{
 	uses {
 		interface StdControl;
 		interface StreamStorageWrite;
+		interface StreamStorageErase;
 		interface Boot;
 		interface Leds;
 		interface LocalTime<TMilli>;
@@ -65,13 +66,21 @@ implementation{
 
 	event void Boot.booted(){
 		uint32_t period=(uint32_t)SAMP_T*1024*60;
-		call StdControl.start();
-		call SensorTimer.startPeriodicAt(call SensorTimer.getNow()-period+(uint32_t)WAIT_AFTER_START*1024,period);
-		//call SensorTimer.startPeriodic(1000);	
+		if(TOS_NODE_ID==9999){
+			call SensorTimer.startOneShot(2000);
+		}else{
+			call StdControl.start();
+			call SensorTimer.startPeriodicAt(call SensorTimer.getNow()-period+(uint32_t)WAIT_AFTER_START*1024,period);
+			//call SensorTimer.startPeriodic(1000);	
+		}
 	}
 	
 	event void SensorTimer.fired(){
-		call Read.read();
+		if(TOS_NODE_ID==9999){
+			call StreamStorageErase.erase();
+		} else {
+			call Read.read();
+		}
 	}
 	
 	event void Read.readDone(error_t result, echorange_t* range){
@@ -107,6 +116,9 @@ implementation{
 		}
 	}
 	
+	event void StreamStorageErase.eraseDone(error_t err){
+		call Leds.set(0xff);
+	}
 	event void StreamStorageWrite.appendDone(void* buf, uint16_t  len, error_t error){}
 	event void StreamStorageWrite.syncDone(error_t error){}
 }
