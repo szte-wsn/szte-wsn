@@ -478,6 +478,8 @@ implementation{
 			maxAddress.address = 0;
 			maxAddress.bytesFilled = 0;
 			maxAddress.valid = FALSE; //flash is empty. We're invalid, until someone starts writing
+			call PageMeta.releaseWriteBuffer();
+			writeBuffer = NULL;
 			state = S_IDLE;
 			signal TranslatedStorage.eraseAllDone(error);
 		}
