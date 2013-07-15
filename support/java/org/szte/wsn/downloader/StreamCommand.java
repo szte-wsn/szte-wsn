@@ -55,10 +55,6 @@ public class StreamCommand implements MessageListener {
 	private int nodeid;
 	public static final int ALL_NODE=0xffff;
 	public static final int FIRST_NODE=0xffff+1;
-	private static final long CMD_ERASE = 0;
-	private static final long CMD_MEASNOW = 1;
-	private static final long CMD_SETGAIN = 128;
-	private static final long CMD_SETWAIT = 120;
 	private long command;
 	//private ArrayList<dataFile> files = new ArrayList<dataFile>();
 	
@@ -91,7 +87,7 @@ public class StreamCommand implements MessageListener {
 		if (message instanceof ctrltsMsg && message.dataLength() == ctrltsMsg.DEFAULT_MESSAGE_SIZE) {
 			ctrltsMsg msg = (ctrltsMsg) message;
 			if(!commanded.contains(msg.getSerialPacket().get_header_src())&&(nodeid==FIRST_NODE||nodeid==ALL_NODE||msg.getSerialPacket().get_header_src()==nodeid)){
-				if(command==CMD_ERASE&&(msg.get_max_address()-msg.get_min_address()<=200&&msg.get_min_address()!=twopow(32))){
+				if(command==internalCommandConsts.CMD_ERASE&&(msg.get_max_address()-msg.get_min_address()<=200&&msg.get_min_address()!=twopow(32))){
 					commanded.add(msg.getSerialPacket().get_header_src());
 				} else {
 					System.out.println("Found node #"+msg.getSerialPacket().get_header_src()+" data:"+ (msg.get_max_address()-msg.get_min_address())+" , sending command ("+command+")");
@@ -103,7 +99,7 @@ public class StreamCommand implements MessageListener {
 					try {
 						moteIF.send(msg.getSerialPacket().get_header_src(), response);
 						commanded.add(msg.getSerialPacket().get_header_src());
-						if(command==CMD_ERASE){
+						if(command==internalCommandConsts.CMD_ERASE){
 							System.out.println("Deleting local files");
 							File bin=new File(dataWriter.nodeidToPath(nodeid, ".bin"));
 							File ts=new File(dataWriter.nodeidToPath(nodeid, ".gap"));
@@ -143,29 +139,37 @@ public class StreamCommand implements MessageListener {
 		}
 	}
 	
-	private static long commandParser(String command, long argument) {
+	private static long commandParser(String command, long argument, long argument2) {
 		if(command.equals("erase"))
-			return CMD_ERASE;
+			return internalCommandConsts.CMD_ERASE;
 		else if(command.equals("setgain")){
-			long ret=CMD_SETGAIN;
+			long ret=externalCommandConsts.CMD_SETGAIN;
 			if(argument<0)
 				return -1;
 			else
-				return StreamCommand.setArgument(ret,argument);
+				return StreamCommand.setArgument(ret,argument, 0);
+		}else if(command.equals("setgaindual")){
+			long ret=externalCommandConsts.CMD_SETGAIN_DUAL;
+			if(argument<0 || argument2<0)
+				return -1;
+			else {
+				ret = StreamCommand.setArgument(ret,argument, 0);
+				return StreamCommand.setArgument(ret,argument2, 1);
+			}
 		}else if(command.equals("setwait")){
-			long ret=CMD_SETWAIT;
+			long ret=externalCommandConsts.CMD_SETWAIT;
 			if(argument<0)
 				return -1;
 			else
-				return StreamCommand.setArgument(ret,argument);
+				return StreamCommand.setArgument(ret,argument, 0);
 		}else if(command.equals("measnow")){
-			return CMD_MEASNOW;
+			return externalCommandConsts.CMD_MEASNOW;
 		} else
 			return -1;
 	}
 
-	private static long setArgument(long command, long argument) {
-		argument<<=8;
+	private static long setArgument(long command, long argument, int argumentindex) {
+		argument<<=(8*(argumentindex+1));
 		return command+argument;
 	}
 	
@@ -176,6 +180,7 @@ public class StreamCommand implements MessageListener {
 		StringHolder nodeid=new StringHolder();
 		StringHolder command=new StringHolder();
 		LongHolder commandValue=new LongHolder(-1L);
+		LongHolder commandValue2=new LongHolder(-1L);
 		LongHolder rawcommand=new LongHolder(-1L);
 		
 		
@@ -185,7 +190,8 @@ public class StreamCommand implements MessageListener {
 		parser.addOption("-n,--nodeid %s#Select node (special nodeids: all; first)",nodeid);
 		parser.addOption("-c,--command %s#Select command: erase, setgain, measnow, setwait (default: erase; working only if --raw doesn't set)",command);
 		parser.addOption("-r,--raw %d#Select command with number (working only if --command doesn't set)",rawcommand);
-		parser.addOption("-v,--value %d#Setting command argument",commandValue);
+		parser.addOption("-v,--value1 %d#Setting first command argument",commandValue);
+		parser.addOption("-V,--value2 %d#Setting second command argument",commandValue2);
 		parser.matchAllArgs (args);
 		
 		if(help.value||(command.value!=null&&rawcommand.value>=0||nodeid.value==null)){
@@ -210,14 +216,14 @@ public class StreamCommand implements MessageListener {
 		long comm=rawcommand.value;
 		if(comm<0&&command.value!=null)
 		{
-			comm=StreamCommand.commandParser(command.value, commandValue.value);
+			comm=StreamCommand.commandParser(command.value, commandValue.value, commandValue2.value);
 			if(comm<0){
 				System.out.println(parser.getHelpMessage());
 				System.exit(0);
 			}
 		} 
 		else {
-			comm=StreamCommand.CMD_ERASE;
+			comm=internalCommandConsts.CMD_ERASE;
 		}
 
 		new StreamCommand(source.value, node_id, comm);
