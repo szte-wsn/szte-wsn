@@ -1,5 +1,4 @@
-/*
-* Copyright (c) 2010, University of Szeged
+/** Copyright (c) 2010, University of Szeged
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -29,28 +28,57 @@
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 * OF THE POSSIBILITY OF SUCH DAMAGE.
 *
-* Author:Andras Biro
+* Author: Miklos Maroti
 */
 
-configuration ApplicationC{
-}
-implementation{
-	components new StorageFrameC(),StreamUploaderC;
-	components new TimerMilliC() as SensorTimer, EchoRangerC;
-	components ApplicationM as App, MainC, LedsC, LocalTimeMilliC;
+#include "EchoRanger.h"
 
-	App.StreamStorageWrite->StorageFrameC;
-	App.Boot -> MainC.Boot;
-	App.Leds->LedsC;
-	App.StdControl -> StreamUploaderC;
-	App.Command -> StreamUploaderC;
-	App.LocalTime->LocalTimeMilliC;
-	App.SensorTimer -> SensorTimer;
-	App.Read -> EchoRangerC;
-	App.LastBuffer -> EchoRangerC.LastBuffer;
-	App.SetGain->EchoRangerC.SetGain;
-	App.SetWait->EchoRangerC.SetWait;
-	
-	components new StreamStorageClientC();
-	App.StreamStorageErase->StreamStorageClientC;
+configuration EchoRangerC
+{
+	provides
+	{
+		interface Set<uint8_t> as SetCoarseGain;
+		interface Set<uint8_t> as SetFineGain;
+		interface Set<uint8_t> as SetWait;
+	  
+		interface Read<echorange_t*> as EchoRanger;
+		interface ReadRef<uint16_t> as LastBuffer;
+	}
+}
+
+implementation
+{
+	components EchoRangerM;
+	components MainC;
+	components NoLedsC as LedsC;
+	#ifdef PLATFORM_IRIS
+	components new AlarmOne16C() as AlarmC;
+	#else
+	components new AlarmMicro32C() as AlarmC;
+	#endif
+	components MicrophoneC;
+	components MicaBusC;
+	components LocalTimeMicroC;
+	#ifdef PLATFORM_IRIS
+	components new NoReadInt16C(10) as TempC;
+	#else
+	components new AtmegaTemperatureC() as TempC;
+	#endif
+	components new BuzzerC();
+
+	EchoRangerM.Boot -> MainC;
+	EchoRangerM.Leds -> LedsC;
+	EchoRangerM.MicRead ->	MicrophoneC;
+	EchoRangerM.FirstAmp -> MicrophoneC.FirstAmp;
+	EchoRangerM.SecondAmp -> MicrophoneC.SecondAmp;
+	EchoRangerM.Alarm -> AlarmC;
+	EchoRangerM.SounderPin -> BuzzerC;	// from SounderC
+	EchoRangerM.LocalTime -> LocalTimeMicroC;
+	EchoRangerM.ReadTemp -> TempC;
+
+	SetCoarseGain = EchoRangerM.SetCoarseGain;
+	SetFineGain = EchoRangerM.SetFineGain;
+	SetWait = EchoRangerM.SetWait;
+	EchoRanger = EchoRangerM;
+	LastBuffer = EchoRangerM.LastBuffer;
 }

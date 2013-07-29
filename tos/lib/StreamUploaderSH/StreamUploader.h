@@ -60,6 +60,7 @@ enum{
 	AM_CTRLTS_MSG_T=AM_CTRL_MSG_T,
 //	SHORT_TIME=RADIO_SHORT,//in milliseconds
 //	LONG_TIME=RADIO_LONG,//in seconds
+	CMD_ERASE = 0,
 };
 
 typedef nx_struct ctrl_msg_t {

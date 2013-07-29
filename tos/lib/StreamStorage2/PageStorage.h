@@ -7,7 +7,7 @@
  // #include "HplAt45db_chip.h"
   #define PAGE_SIZE AT45_PAGE_SIZE
   #define EMPTY_BYTE 0xff
-#elif defined(PLATFORM_TELOSB) || defined(PLATFORM_UCDUAL) || defined(PLATFORM_UCMINI) || defined(PLATFORM_Z1) || defined(PLATFORM_UCMINI10) || defined(PLATFORM_UCMOTEDRD) || defined(PLATFORM_UCMOTEDRDB)
+  #elif defined(PLATFORM_TELOSB) || defined(PLATFORM_UCDUAL) || defined(PLATFORM_UCMINI) || defined(PLATFORM_Z1) || defined(PLATFORM_UCMINI) || defined(PLATFORM_UCPROTONA) || defined(PLATFORM_UCPROTONB) || defined(PLATFORM_GRAINPATROL) || defined(PLATFORM_UCBASE) || defined(PLATFORM_UCBASEDRD)
   #include "Stm25PageStorage.h"
 #endif
 

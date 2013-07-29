@@ -17,6 +17,6 @@ implementation{
   MetaInit = StorageInitP.MetaInit;
   AddressTranslatorInit = StorageInitP;
   
-  components DiagMsgC as DiagMsgC;
+  components NoDiagMsgC as DiagMsgC;
   StorageInitP.DiagMsg -> DiagMsgC;
 }

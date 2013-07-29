@@ -6,6 +6,6 @@ implementation{
   TranslationLookasideBufferP.Init <- MainC.SoftwareInit;
   TLB = TranslationLookasideBufferP;
   
-  components DiagMsgC as DiagMsgC;
+  components NoDiagMsgC as DiagMsgC;
   TranslationLookasideBufferP.DiagMsg -> DiagMsgC;
 }

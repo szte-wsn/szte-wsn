@@ -53,37 +53,57 @@ module ApplicationM{
 		interface LocalTime<TMilli>;
 		interface Timer<TMilli> as SensorTimer; 
 		interface Read<echorange_t*>; 
-		interface Get<uint16_t*> as LastBuffer;
-		interface Set<uint16_t> as SetGain;
+		interface ReadRef<uint16_t> as LastBuffer;
+		interface Set<uint8_t> as SetFineGain;
+		interface Set<uint8_t> as SetCoarseGain;
 		interface Set<uint8_t> as SetWait;
 		interface Command;
+		interface DiagMsg;
 	}
 }
 
 implementation{
 	
 	uint8_t counter=0;
+	
+	uint16_t buffer[ECHORANGER_BUFFER];
 
 	event void Boot.booted(){
-		uint32_t period=(uint32_t)SAMP_T*1024*60;
 		if(TOS_NODE_ID==9999){
 			call SensorTimer.startOneShot(2000);
 		}else{
+			uint32_t period=(uint32_t)SAMP_T*1024*60;
 			call StdControl.start();
 			call SensorTimer.startPeriodicAt(call SensorTimer.getNow()-period+(uint32_t)WAIT_AFTER_START*1024,period);
-			//call SensorTimer.startPeriodic(1000);	
 		}
+		//call SensorTimer.startPeriodic(1000);	
 	}
 	
 	event void SensorTimer.fired(){
 		if(TOS_NODE_ID==9999){
-			call StreamStorageErase.erase();
-		} else {
-			call Read.read();
+			error_t err = call StreamStorageErase.erase();
+			if(call DiagMsg.record()){
+				call DiagMsg.str("erase");
+				call DiagMsg.uint8(err);
+				call DiagMsg.send();
+			}
+		}else{
+			error_t err =	call Read.read();
+			if(call DiagMsg.record()){
+				call DiagMsg.str("read");
+				call DiagMsg.uint8(err);
+				call DiagMsg.send();
+			}
 		}
 	}
 	
 	event void Read.readDone(error_t result, echorange_t* range){
+		if(call DiagMsg.record()){
+			call DiagMsg.str("App readDone");
+			call DiagMsg.uint8(result);
+			call DiagMsg.send();
+		}
+		
 		if(result==SUCCESS){
 			call StreamStorageWrite.appendWithID(0x00,range, sizeof(echorange_t));
 		} else{
@@ -92,33 +112,48 @@ implementation{
 	}
 	
 	event void StreamStorageWrite.appendDoneWithID(void* buf, uint16_t  len, error_t error){
+		if(call DiagMsg.record()){
+			call DiagMsg.str("App writeDone");
+			call DiagMsg.uint8(error);
+			call DiagMsg.send();
+		}
 		if((SAVE_WAVE!=0)&&len==sizeof(echorange_t)){
 			counter++;
 			if(counter==SAVE_WAVE){
-				uint16_t* buffer=call LastBuffer.get();
-				call StreamStorageWrite.appendWithID(0x11,buffer, sizeof(uint16_t)*ECHORANGER_BUFFER);
+				call LastBuffer.read(buffer);
 				counter=0;
 			}
 		}
 	}	
 	
+	event void LastBuffer.readDone(error_t err, uint16_t* readbuffer){
+		call StreamStorageWrite.appendWithID(0x11,readbuffer, sizeof(uint16_t)*ECHORANGER_BUFFER);
+	}
+	
 	event void Command.newCommand(uint32_t id){
-		if((id&0xff)==128){
-		    call SetGain.set((id>>8)&0x2ff);
-		    call Command.sendData(id);	
-		}else if((id&0xff)==120){
+		if((id&0xff)==CMD_SETWAIT){
 		    call SetWait.set((id>>8)&0xff);
 		    call Command.sendData(id);	
-		}else if(id==1){
+		}else if(id==CMD_MEASNOW){
 		    uint32_t period=(uint32_t)SAMP_T*1024*60;
 		    call SensorTimer.startPeriodicAt(call SensorTimer.getNow()-period+(uint32_t)3*1024,period);	
 		    call Command.sendData(id);
+		} else if((id&0xff)==CMD_SETGAIN_DUAL){
+			call SetCoarseGain.set((id>>8)&0xff);
+			call SetFineGain.set((id>>16)&0xff);
+			call Command.sendData(id);
 		}
 	}
 	
 	event void StreamStorageErase.eraseDone(error_t err){
 		call Leds.set(0xff);
+		if(call DiagMsg.record()){
+			call DiagMsg.str("App eraseDone");
+			call DiagMsg.uint8(err);
+			call DiagMsg.send();
+		}
 	}
+	
 	event void StreamStorageWrite.appendDone(void* buf, uint16_t  len, error_t error){}
 	event void StreamStorageWrite.syncDone(error_t error){}
 }

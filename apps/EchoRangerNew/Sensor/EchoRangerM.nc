@@ -40,8 +40,9 @@ module EchoRangerM
 	{
 		interface Read<echorange_t*> as EchoRanger;
 
-		interface Get<uint16_t*> as LastBuffer;
-		interface Set<uint16_t> as SetGain;
+		interface ReadRef<uint16_t> as LastBuffer;
+		interface Set<uint8_t> as SetCoarseGain;
+		interface Set<uint8_t> as SetFineGain;
 		interface Set<uint8_t> as SetWait;
 	}
 
@@ -59,27 +60,23 @@ module EchoRangerM
 		interface Alarm<TMicro, uint32_t> as Alarm;
 		#endif
 		interface LocalTime<TMicro>;
-		interface Read<uint16_t> as ReadTemp;
+		interface Read<int16_t> as ReadTemp;
 	}
 }
 
 implementation
 {
-	
-	inline void setGain(uint16_t newGain){
-		if( newGain <= 256 ){
-			call FirstAmp.write(newGain);
-			call SecondAmp.write(0);
-		} else {
-			call FirstAmp.write(256);
-			call SecondAmp.write(newGain - 256);
-		}
-	}
+	uint16_t* targetBuffer = NULL;
 	
 	event void Boot.booted()
 	{
 		call SounderPin.clr();
-		setGain(ECHORANGER_MICGAIN);
+		call FirstAmp.write(ECHORANGER_MICGAIN_COARSE);
+		call SecondAmp.write(ECHORANGER_MICGAIN_FINE);
+		
+		call SounderPin.set();
+		call Leds.led1On();
+		call Alarm.start(ECHORANGER_BEEP * 10);
 	}
 
 	uint16_t buffer[ECHORANGER_BUFFER];
@@ -94,8 +91,12 @@ implementation
 		STATE_PROCESS = 3,
 	};
 	
-	command void SetGain.set(uint16_t value){
-		setGain(value);
+	command void SetCoarseGain.set(uint8_t value){
+		call FirstAmp.write(value);
+	}
+	
+	command void SetFineGain.set(uint8_t value){
+		call SecondAmp.write(value);
 	}
 
 	/**
@@ -142,7 +143,7 @@ implementation
 			return FAIL;
 	}
 
-	event void ReadTemp.readDone(error_t result, uint16_t value)
+	event void ReadTemp.readDone(error_t result, int16_t value)
 	{
 		if( state == STATE_WAIT && result == SUCCESS )
 			range.temperature = value;
@@ -282,10 +283,21 @@ implementation
 		state = STATE_READY;
 		signal EchoRanger.readDone(SUCCESS, &range);
 	}
+	
+	task void bufferCopy(){
+		uint16_t* reportBuffer = targetBuffer;
+		memcpy(reportBuffer, buffer, sizeof(uint16_t)*ECHORANGER_BUFFER);
+		targetBuffer = NULL;
+		signal LastBuffer.readDone(SUCCESS, reportBuffer);
+	}
 
-	command uint16_t* LastBuffer.get()
+	command error_t LastBuffer.read(uint16_t *newBuffer)
 	{
-		return buffer;
+		if(targetBuffer != NULL || state != STATE_READY )
+			return EBUSY;
+		targetBuffer = newBuffer;
+		post bufferCopy();
+		return SUCCESS;
 	}
 	
 	event void FirstAmp.writeDone(error_t err, uint16_t val){}

@@ -31,7 +31,8 @@
 *
 * Author:Andras Biro
 */
-generic module StorageFrameP(){
+#include "StorageFrame.h"
+generic module StorageFrameWriteP(){
 	provides interface StreamStorageWrite as FramedWrite;
     
 	uses interface StreamStorageWrite;
@@ -39,9 +40,6 @@ generic module StorageFrameP(){
 }
 implementation{
 	enum {
-		FRAMEBYTE=0x5e,
-		ESCAPEBYTE=0x5d,
-		XORESCAPEBYTE=0x20,
 		REQ_APPEND,
 		REQ_APPENDWITHID,
 		REQ_SYNC,

@@ -47,6 +47,7 @@ implementation{
 	components new SimpleFcfsArbiterC(UQ_STREAMSTORAGE) as Arbiter;
 	components StreamStorageArbP, MainC;
 	components new StreamStorageC(VOLUME_STREAMSTORAGE, TRUE, 10, 10);
+// 	components StreamStorageRamC as StreamStorageC;
 	
 	Resource=Arbiter;
 	StreamStorageErase=StreamStorageArbP;

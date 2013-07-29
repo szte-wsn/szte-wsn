@@ -11,6 +11,6 @@ implementation{
   TranslatedStorage = AddressTranslatorLayerP;
   AddressTranslatorInit = AddressTranslatorLayerP;
   
-  components DiagMsgC as DiagMsgC;
+  components NoDiagMsgC as DiagMsgC;
   AddressTranslatorLayerP.DiagMsg -> DiagMsgC;
 }

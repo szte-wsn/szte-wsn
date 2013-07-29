@@ -32,13 +32,14 @@
 * Author:Andras Biro
 */
 #include "StreamStorage.h"
-generic configuration StorageFrameC(){
+generic configuration StorageFrameWriteC(){
 	provides interface StreamStorageWrite;
 }
 implementation{
-	components new StreamStorageClientC(), new StorageFrameP();
-	StorageFrameP.StreamStorageWrite->StreamStorageClientC;
-	StorageFrameP.Resource->StreamStorageClientC;
+	//TODO: this should use a StreamStorageWrite interface, not a client, and no Resource at all
+	components new StreamStorageClientC(), new StorageFrameWriteP();
+	StorageFrameWriteP.StreamStorageWrite->StreamStorageClientC;
+	StorageFrameWriteP.Resource->StreamStorageClientC;
 	
-	StreamStorageWrite=StorageFrameP.FramedWrite;
+	StreamStorageWrite=StorageFrameWriteP.FramedWrite;
 }

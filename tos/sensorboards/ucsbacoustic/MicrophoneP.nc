@@ -11,6 +11,7 @@ module MicrophoneP{
 	uses interface SplitControl as Amp2Control;
 	uses interface BusPowerManager as OpAmps;
 	uses interface BusPowerManager as Mic;
+	uses interface Timer<TMilli>;
 	provides interface Init;
 	
 	provides interface Atm128AdcConfig;
@@ -24,6 +25,7 @@ implementation{
 	uint32_t readVal;
 	
 	enum{
+		POT_SETTING_TIMEOUT = 10,
 		START = (1 << 0),
 		MIC_POWER = (1 << 1),
 		AMP_POWER = (1 << 2),
@@ -167,7 +169,7 @@ implementation{
 		}
 	}
 	
-	inline void read(){
+	event void Timer.fired(){
 		if(call DiagMsg.record()){
 			call DiagMsg.str("read");
 			call DiagMsg.hex8(turnedOn);
@@ -324,9 +326,10 @@ implementation{
 			call DiagMsg.send();
 		}
 		turning &= ~POT0_POWER;
-		if( err == SUCCESS ){
+		if( err == SUCCESS || err == EALREADY ){
 			turnedOn |= POT0_POWER;
-			if(call SubAmp1.write(amp1) == SUCCESS){
+			err = call SubAmp1.write(amp1);
+			if( err == SUCCESS || err == EALREADY ){
 				turning |= POT0_VALUE;
 			} else {
 				result = FAIL;
@@ -337,6 +340,7 @@ implementation{
 				call DiagMsg.str("pot0");
 				call DiagMsg.hex8(turnedOn);
 				call DiagMsg.hex8(turning);
+				call DiagMsg.hex8(err);
 				call DiagMsg.send();
 			}
 		} else {
@@ -354,9 +358,10 @@ implementation{
 			call DiagMsg.send();
 		}
 		turning &= ~POT1_POWER;
-		if( err == SUCCESS ){
+		if( err == SUCCESS || err == EALREADY ){
 			turnedOn |= POT1_POWER;
-			if(call SubAmp2.write(amp2) == SUCCESS){
+			err = call SubAmp2.write(amp2);
+			if( err == SUCCESS || err == EALREADY ){
 				turning |= POT1_VALUE;
 			} else {
 				result = FAIL;
@@ -367,6 +372,7 @@ implementation{
 				call DiagMsg.str("pot1");
 				call DiagMsg.hex8(turnedOn);
 				call DiagMsg.hex8(turning);
+				call DiagMsg.hex8(err);
 				call DiagMsg.send();
 			}
 		} else {
@@ -386,10 +392,10 @@ implementation{
 		}
 		if(!(turnedOn & POT0_VALUE)){
 			turning &= ~POT0_VALUE;
-			if( err == SUCCESS ){
+			if( err == SUCCESS || err == EALREADY){
 				turnedOn |= POT0_VALUE;
 				if( (turnedOn & ALL_ON) == ALL_ON  )
-					read();
+					call Timer.startOneShot(POT_SETTING_TIMEOUT);
 			} else {
 				result = FAIL;
 				shutDown();
@@ -409,10 +415,10 @@ implementation{
 		}
 		if(!(turnedOn & POT1_VALUE)){
 			turning &= ~POT1_VALUE;
-			if( err == SUCCESS ){
+			if( err == SUCCESS || err == EALREADY){
 				turnedOn |= POT1_VALUE;
 				if( (turnedOn & ALL_ON) == ALL_ON  )
-					read();
+					call Timer.startOneShot(POT_SETTING_TIMEOUT);
 			} else {
 				result = FAIL;
 				shutDown();
@@ -432,7 +438,7 @@ implementation{
 		turning &= ~AMP_POWER;
 		turnedOn |= AMP_POWER;
 		if( (turnedOn & ALL_ON) == ALL_ON  )
-			read();
+			call Timer.startOneShot(POT_SETTING_TIMEOUT);
 	}
 	
 	event void Mic.powerOn(){
@@ -445,7 +451,7 @@ implementation{
 		turning &= ~MIC_POWER;
 		turnedOn |= MIC_POWER;
 		if( (turnedOn & ALL_ON) == ALL_ON  )
-			read();
+			call Timer.startOneShot(POT_SETTING_TIMEOUT);
 	}
 	
 	event void Amp1Control.stopDone(error_t err){
@@ -477,7 +483,7 @@ implementation{
 	}
 	
 	command error_t Init.init(){
-		call Mic.configure(100, 100);//TODO it's a guess...
+		call Mic.configure(200, 200);//TODO it's a guess...
 		call OpAmps.configure(10, 10); //it's probably way faster, but we have much slower stuffs, and better safe than sorry
 		return SUCCESS;
 	}

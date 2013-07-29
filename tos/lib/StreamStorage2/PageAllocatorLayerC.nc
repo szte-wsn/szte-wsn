@@ -9,6 +9,6 @@ implementation{
   PageAllocator = PageAllocatorLayerP;
   PageAllocatorInit = PageAllocatorLayerP;
   
-  components DiagMsgC as DiagMsgC;
+  components NoDiagMsgC as DiagMsgC;
   PageAllocatorLayerP.DiagMsg -> DiagMsgC;
 }

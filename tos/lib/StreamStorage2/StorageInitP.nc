@@ -82,7 +82,7 @@ implementation{
 			signal SplitControl.startDone(FAIL);
 		}
 		if(call DiagMsg.record()){
-			call DiagMsg.str("init done");
+			call DiagMsg.str("i dn");
 			call DiagMsg.uint8(empty);
 			call DiagMsg.uint32(lastStartAddress);
 			call DiagMsg.uint32(lastFilledBytes);
@@ -101,6 +101,7 @@ implementation{
 					call DiagMsg.uint32(pageNum);
 					call DiagMsg.uint32(meta->startAddress);
 					call DiagMsg.uint32(meta->filledBytes);
+					call DiagMsg.uint8(readToPageA);
 					call DiagMsg.send();
 				}
 				
@@ -139,7 +140,7 @@ implementation{
 							}
 						} else {
 							if( isEmpty(&pageA.meta) ){ //first page is empty (bacause it's erased), so the first data should be in the first page of the second sector
-								initDone(pageB.meta.startAddress, pageB.meta.filledBytes, pageB.page, pageA.page + 1, FALSE, FALSE);
+								initDone(pageB.meta.startAddress, pageB.meta.filledBytes, pageB.page, pageA.page + (call PageMeta.getSectorSize() / call PageMeta.getPageSize()), FALSE, FALSE);
 							} else if(pageB.meta.startAddress > pageA.meta.startAddress){//flash is full, but no data is overwritten (yet)
 								initDone(pageB.meta.startAddress, pageB.meta.filledBytes, pageB.page, pageA.page, FALSE, FALSE);
 							} else { //flash is full, some data is overwritten, some data might be erased for write
@@ -167,7 +168,12 @@ implementation{
 					} else if( isEmpty(&pageB.meta) || pageB.meta.startAddress < pageA.meta.startAddress ){ //we're done, but pageB is empty
 						call PageMeta.readMeta(pageB.page - 1);//this should be the last written page
 					} else {
-						initDone(pageB.meta.startAddress, pageB.meta.filledBytes, pageB.page, pageA.page, FALSE, FALSE);
+						uint32_t minPage;
+						if( pageA.meta.startAddress == 0 )
+							minPage = pageA.page;
+						else
+							minPage = ( (pageB.page/(call PageMeta.getSectorSize() / call PageMeta.getPageSize()) + 1) * (call PageMeta.getSectorSize() / call PageMeta.getPageSize()));//first page on the next sector
+						initDone(pageB.meta.startAddress, pageB.meta.filledBytes, pageB.page, minPage, FALSE, FALSE);
 					}
 				}
 			}

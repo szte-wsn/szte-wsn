@@ -72,39 +72,34 @@ implementation{
 			call PageMeta.readPage(readPage);
 		} else { // not on these pages
 			//assume the data density is linear on the drive (which is not, that's why we iterate)
-			float ratio = ((float)(readAddress - searchMin.address) / (searchMax.address - searchMin.address)); //TODO optimize this
-			//TODO: this should work with flash overflows, but it's need to be verified
+			readPage = (uint32_t)(searchMin.page + ((((int64_t)searchMax.page - searchMin.page) * (readAddress - searchMin.address)) / (searchMax.address - searchMin.address)));
 			
 			if(call DiagMsg.record()){
-				call DiagMsg.str("ratio");
-				call DiagMsg.hex32(*((nx_uint32_t*)(&ratio)));
+				call DiagMsg.str("TR it");
+				call DiagMsg.uint32(readAddress);
+				call DiagMsg.uint32(searchMin.page);
+				call DiagMsg.uint32(searchMin.address);
+				call DiagMsg.uint16(searchMin.bytesFilled);
+				call DiagMsg.uint8(searchMin.valid);
 				call DiagMsg.send();
 			}
-			readPage = (uint32_t)(searchMin.page + (uint32_t)(ratio * (uint32_t)(searchMax.page - searchMin.page)));
-			if( readPage == searchMin.page ) //if the ratio is not enough
-				readPage ++;
-			if( readPage == searchMax.page )
-				readPage --;
+			if(call DiagMsg.record()){;
+				call DiagMsg.uint32(searchMax.page);
+				call DiagMsg.uint32(searchMax.address);
+				call DiagMsg.uint16(searchMax.bytesFilled);
+				call DiagMsg.uint8(searchMax.valid);
+				call DiagMsg.uint32(readPage);
+				call DiagMsg.uint8(err);
+				call DiagMsg.send();
+			}
+			
+			if( (readPage <= searchMin.page) && ((searchMin.page < searchMax.page) || ((searchMin.page > searchMax.page) && (readPage > searchMax.page))) ){
+				readPage = searchMin.page + 1;
+			} else if( (readPage >= searchMax.page) && ((searchMin.page < searchMax.page) || ((searchMin.page > searchMax.page) && (readPage < searchMin.page))) ){
+				readPage = searchMax.page -1;
+			}
 			err = call PageMeta.readMeta(readPage);
 		} 
-		if(call DiagMsg.record()){
-			call DiagMsg.str("TR it");
-			call DiagMsg.uint32(readAddress);
-			call DiagMsg.uint32(searchMin.page);
-			call DiagMsg.uint32(searchMin.address);
-			call DiagMsg.uint16(searchMin.bytesFilled);
-			call DiagMsg.uint8(searchMin.valid);
-			call DiagMsg.send();
-		}
-		if(call DiagMsg.record()){;
-			call DiagMsg.uint32(searchMax.page);
-			call DiagMsg.uint32(searchMax.address);
-			call DiagMsg.uint16(searchMax.bytesFilled);
-			call DiagMsg.uint8(searchMax.valid);
-			call DiagMsg.uint32(readPage);
-			call DiagMsg.uint8(err);
-			call DiagMsg.send();
-		}
 	}
 	
 	event void PageMeta.readMetaDone(uint32_t pageNum, void *readBuffer, error_t error){
@@ -226,13 +221,13 @@ implementation{
 	}
 	
 	command error_t TranslatedStorage.read(uint32_t address, uint32_t len, void* data){
-    if(call DiagMsg.record()){
-      call DiagMsg.str("TR rd");
-      call DiagMsg.uint32(address);
-      call DiagMsg.uint32(len);
+		if(call DiagMsg.record()){
+			call DiagMsg.str("TR rd");
+			call DiagMsg.uint32(address);
+			call DiagMsg.uint32(len);
 			call DiagMsg.uint8(state);
-      call DiagMsg.send();
-    }
+			call DiagMsg.send();
+		}
 		if( state == S_READ )
 			return EALREADY;
 		if( state != S_IDLE )
@@ -241,7 +236,7 @@ implementation{
 			return EOFF;
 		if( minAddress.valid && address < minAddress.address )
 			return EINVAL;
-		if( maxAddress.valid && (call TranslatedStorage.getMaxAddress() < address + len ))
+		if( maxAddress.valid && (call TranslatedStorage.getMaxAddress() + 1 < address + len ))
 			return EINVAL;
 		if( !maxAddress.valid && writeOffsetInBuffer < address + len )
 			return EINVAL;

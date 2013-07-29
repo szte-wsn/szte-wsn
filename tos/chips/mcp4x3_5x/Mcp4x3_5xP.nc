@@ -1,13 +1,10 @@
-//TODO: Always on mode?
-generic module Mcp4x3_5xP(uint8_t potPowerAddress, uint8_t potValueAddress)
+generic module Mcp4x3_5xP(uint8_t potPowerAddress, uint8_t potValueAddress, bool dontSleep, bool dontturnoff)//TODO dontturnoff?
 {
 	provides interface Write<uint16_t>;
 	provides interface Read<uint16_t>;
 	provides interface SplitControl;
 	
-	uses interface I2CPacket<TI2CBasicAddr> as I2C;
-	uses interface Resource as I2CResource;
-	uses interface GetNow<uint8_t> as GetAddress;
+	uses interface Resource;
 	
 	//these two interfaces connects the two potmeter module
 	uses interface GetNow<uint8_t> as OtherTCONPart;
@@ -15,8 +12,10 @@ generic module Mcp4x3_5xP(uint8_t potPowerAddress, uint8_t potValueAddress)
 
 	uses interface BusPowerManager as SelfPower;
 	provides interface Init;
+	uses interface StdControl;
 	
 	uses interface DiagMsg;
+	uses interface Mcp4x3_5xCommunication;
 }
 implementation
 {
@@ -52,6 +51,10 @@ implementation
 	
 	command error_t Init.init(){
 		call SelfPower.configure(100, 100);//this should be 20us, but it's somehow way too short
+		if( dontSleep ){
+			selfPowerRequested = TRUE;
+			call SelfPower.requestPower();
+		}
 		return SUCCESS;
 	}
 	
@@ -62,10 +65,12 @@ implementation
 			call DiagMsg.uint8(state);
 			call DiagMsg.send();
 		}
+		call StdControl.start();
 		if( state == MCP_4x3_5x_STATE_IDLE ){
-			call SplitControl.stop();
+			if( !dontSleep )
+				call SplitControl.stop();
 		} else {
-			error_t err = call I2CResource.request();
+			error_t err = call Resource.request();
 			if( err != SUCCESS ){
 				if(call DiagMsg.record()){
 					call DiagMsg.str("ponerr");
@@ -81,6 +86,7 @@ implementation
 	}
 	
 	event void SelfPower.powerOff(){
+		call StdControl.stop();
 		if(call DiagMsg.record()){
 			call DiagMsg.str("poff");
 			call DiagMsg.uint8(potValueAddress);
@@ -115,7 +121,7 @@ implementation
 				call DiagMsg.str("start i2c");
 				call DiagMsg.send();
 			}
-			err = call I2CResource.request();
+			err = call Resource.request();
 		} else {
 			err = SUCCESS;
 		}
@@ -133,8 +139,10 @@ implementation
 			return EALREADY;
 		if( state != MCP_4x3_5x_STATE_IDLE )
 			return EBUSY;
-
-		err = call I2CResource.request();
+		if( dontSleep )
+			return FAIL;
+		
+		err = call Resource.request();
 		if( err == SUCCESS ){
 			state = MCP_4x3_5x_STATE_STOP;
 			power = MCP_4x3_5x_POWER_OFF;
@@ -154,7 +162,7 @@ implementation
 		if( state != MCP_4x3_5x_STATE_IDLE )
 			return EBUSY;
 		
-		err = call I2CResource.request();
+		err = call Resource.request();
 		if( err == SUCCESS ){
 			state = MCP_4x3_5x_STATE_WRITE;
 			buffer[0] = val & MCP_4x3_5x_MSB_MASK;
@@ -182,7 +190,7 @@ implementation
 		if( state != MCP_4x3_5x_STATE_IDLE )
 			return EBUSY;
 		
-		err = call I2CResource.request();
+		err = call Resource.request();
 		if( err == SUCCESS ){
 			state = MCP_4x3_5x_STATE_READ;
 		}
@@ -190,7 +198,7 @@ implementation
 	}
 
 	
-	event void I2CResource.granted()
+	event void Resource.granted()
 	{
 		error_t err = FAIL;
 		if(call DiagMsg.record()){
@@ -203,47 +211,47 @@ implementation
 			case MCP_4x3_5x_STATE_STOP:{
 				buffer[0] = (MCP_4x3_5x_TCON_ADDR << 4) | (MCP_4x3_5x_COMMAND_WRITE << 2); //general calls disabled
 				buffer[1] = call MyTCONPart.getNow() | call OtherTCONPart.getNow();
-				err = call I2C.write(I2C_START | I2C_STOP, call GetAddress.getNow(), 2, buffer);
+				err = call Mcp4x3_5xCommunication.write(buffer, 2);
 			}break;
 			case MCP_4x3_5x_STATE_READ:{
 				buffer[0] = (potValueAddress << 4) | (MCP_4x3_5x_COMMAND_READ << 2);
-				err = call I2C.write(I2C_START, call GetAddress.getNow(), 1, buffer);
+				err = call Mcp4x3_5xCommunication.write(buffer, 1);
 			}break;
 			case MCP_4x3_5x_STATE_WRITE:{
 				buffer[0] |= (potValueAddress << 4) | (MCP_4x3_5x_COMMAND_WRITE << 2);
-				err = call I2C.write(I2C_START | I2C_STOP, call GetAddress.getNow(), 2, buffer);
+				err = call Mcp4x3_5xCommunication.write(buffer, 2);
 			}break;
 		}
 		if(err != SUCCESS){
-			call I2CResource.release();
+			call Resource.release();
 			result = err;
 			post signalDone();
 		}
 	}
 	
-	async event void I2C.writeDone(error_t error, uint16_t addr, uint8_t length, uint8_t *data){
+	async event void Mcp4x3_5xCommunication.writeDone(error_t error, uint8_t length, void *data){
 		if(call DiagMsg.record()){
 			call DiagMsg.str("wd");
 			call DiagMsg.uint8(potValueAddress);
 			call DiagMsg.send();
 		}
 		if( state == MCP_4x3_5x_COMMAND_READ && error == SUCCESS ){
-			error = call I2C.read( I2C_START | I2C_STOP, call GetAddress.getNow(), 2, buffer);
+			error = call Mcp4x3_5xCommunication.read(buffer, 2);
 		}
 		if( state != MCP_4x3_5x_COMMAND_READ || error != SUCCESS){ //error could be overwritten in the previous lines, so this isn't an else
-			call I2CResource.release();
+			call Resource.release();
 			result = error;
 			post signalDone();
 		}
 	}
 
-	async event void I2C.readDone(error_t error, uint16_t addr, uint8_t length, uint8_t *data){
+	async event void Mcp4x3_5xCommunication.readDone(error_t error, uint8_t length, void *data){
 		if(call DiagMsg.record()){
 			call DiagMsg.str("rd");
 			call DiagMsg.uint8(potValueAddress);
 			call DiagMsg.send();
 		}
-		call I2CResource.release();
+		call Resource.release();
 		result = error;
 		post signalDone();
 	}
@@ -261,7 +269,8 @@ implementation
 		}
 		switch(prevState){
 			case MCP_4x3_5x_STATE_START:{
-				signal SplitControl.startDone(result);
+				if(selfPowerRequested)
+					signal SplitControl.startDone(result);
 			}break;
 			case MCP_4x3_5x_STATE_STOP:{
 				if(selfPowerRequested)
@@ -282,6 +291,8 @@ implementation
 		}
 	}
 	
+	default command error_t StdControl.start(){return SUCCESS;};
+	default command error_t StdControl.stop(){return SUCCESS;};
 	default event void SplitControl.startDone(error_t res){};
 	default event void SplitControl.stopDone(error_t res){};
 	default event void Write.writeDone(error_t success, uint16_t val) {};

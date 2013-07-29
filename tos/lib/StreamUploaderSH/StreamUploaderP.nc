@@ -92,8 +92,9 @@ implementation{
 				call DiagMsg.send();
 			}
 			status=WAIT_FOR_BS;
-		}
-		call Resource.request();
+			call WaitTimer.startOneShot(5);
+		} else
+			call Resource.request();
 	}
 	
 	event void Resource.granted(){
@@ -103,7 +104,7 @@ implementation{
 				error=call StreamStorageRead.getMinAddress();
 			}break;
 			case SEND:{
-				if(minaddress+MESSAGE_SIZE>maxaddress)
+				if(minaddress+MESSAGE_SIZE+1>maxaddress)
 						minaddress=maxaddress-MESSAGE_SIZE+1;
 				error=call StreamStorageRead.read(minaddress, buffer, MESSAGE_SIZE);
 			}break;
@@ -234,7 +235,7 @@ implementation{
 					call DiagMsg.send();
 				}
 				call Resource.request();
-			} else if(rec->min_address==0) {
+			} else if(rec->min_address==CMD_ERASE) {
 				if(call DiagMsg.record()){
 					call DiagMsg.str("SU er");
 					call DiagMsg.uint32(minaddress);

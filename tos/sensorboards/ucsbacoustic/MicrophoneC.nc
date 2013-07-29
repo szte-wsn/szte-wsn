@@ -6,7 +6,7 @@ configuration MicrophoneC{
 }
 implementation{
 	components MicrophoneP, GainOpAmpsPowerManagerC, MicPowerManagerC, Mcp4x3_5xC, MainC;
-	components new AdcReadClientC(), new AdcReadStreamClientC(), MicaBusC;
+	components new AdcReadClientC(), new AdcReadStreamClientC(), MicaBusC, new TimerMilliC();
 	Read = MicrophoneP;
 	ReadStream = MicrophoneP;
 	FirstAmp = MicrophoneP.Amp1;
@@ -29,6 +29,8 @@ implementation{
 	AdcReadStreamClientC.Atm128AdcConfig -> MicrophoneP;
 	MicrophoneP.SubReadStream -> AdcReadStreamClientC;
 	
-	components DiagMsgC as DiagMsgC, NoDiagMsgC;
-	MicrophoneP.DiagMsg -> NoDiagMsgC;
+	MicrophoneP.Timer -> TimerMilliC;
+	
+	components NoDiagMsgC as DiagMsgC;
+	MicrophoneP.DiagMsg -> DiagMsgC;
 }
