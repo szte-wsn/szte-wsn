@@ -72,7 +72,12 @@ implementation{
 			call PageMeta.readPage(readPage);
 		} else { // not on these pages
 			//assume the data density is linear on the drive (which is not, that's why we iterate)
-			readPage = (uint32_t)(searchMin.page + ((((int64_t)searchMax.page - searchMin.page) * (readAddress - searchMin.address)) / (searchMax.address - searchMin.address)));
+			int64_t pages;
+			if( searchMax.page > searchMin.page )
+				pages = (int64_t)searchMax.page - searchMin.page;
+			else
+				pages = (int64_t)searchMax.page +  (call PageMeta.getNumPages() - searchMin.page);
+			readPage = (uint32_t)(searchMin.page + (( pages * (readAddress - searchMin.address)) / (searchMax.address - searchMin.address)));
 			
 			if(call DiagMsg.record()){
 				call DiagMsg.str("TR it");
@@ -180,7 +185,7 @@ implementation{
 								memcpy((void*)(buffer + offset), writeBuffer, length - offset);
 								offset = length;
 							} else 
-								call PageMeta.readPage(pageNum + 1);
+								call PageMeta.readPage((pageNum + 1) % (call PageMeta.getNumPages() - 1));
 						}
 					} else { //something is totally wrong: eighter we thought that we found the first page, but we didn't, or the addressing is not strictly increasing
 						//TODO this is a serious error, give some better error, at least in diag
@@ -196,7 +201,7 @@ implementation{
 						memcpy((void*)(buffer + offset), writeBuffer, length - offset);
 						offset = length;
 					} else 
-						call PageMeta.readPage(pageNum + 1);
+						call PageMeta.readPage((pageNum + 1) % (call PageMeta.getNumPages() - 1));
 				} else { //last page
 					memcpy((void*)(buffer + offset), readBuffer, length - offset);
 					offset = length;
