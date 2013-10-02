@@ -59,6 +59,7 @@ module NullC @safe()
 	uses interface Timer<TMilli>;
 	uses interface Notify<uint32_t> as DownloadDone;
 	uses interface StreamDownloaderInfo;
+	uses interface SplitControl as StorageControl;
 	uses interface DiagMsg;
 }
 implementation
@@ -71,6 +72,10 @@ implementation
 			call DiagMsg.str("B");
 			call DiagMsg.send();
 		}
+		call StorageControl.start();
+	}
+	
+	event void StorageControl.startDone(error_t err){
 		call SplitControl.start();
 	}
 	
@@ -167,5 +172,6 @@ implementation
 	}
 	
 	event void SplitControl.startDone(error_t err){}
+	event void StorageControl.stopDone(error_t err){}
 }
 

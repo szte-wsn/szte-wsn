@@ -41,6 +41,7 @@ configuration StreamStorageArbC{
 		interface StreamStorageErase[uint8_t uid];
 		interface StreamStorageWrite[uint8_t uid];
 		interface StreamStorageRead[uint8_t uid];
+		interface SplitControl;
 	}
 }
 implementation{
@@ -58,9 +59,5 @@ implementation{
 	StreamStorageArbP.SubWrite -> StreamStorageC;
 	StreamStorageArbP.SubRead -> StreamStorageC;
 
-	components new StreamStorageClientC();
-	StreamStorageArbP.Resource -> StreamStorageClientC;
-	StreamStorageArbP.SplitControl -> StreamStorageC;
-	
-	MainC.SoftwareInit -> StreamStorageArbP;
+	SplitControl = StreamStorageC;
 }

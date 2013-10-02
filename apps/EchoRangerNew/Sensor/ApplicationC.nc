@@ -39,12 +39,13 @@ implementation{
 	components new TimerMilliC() as SensorTimer, EchoRangerC;
 	components ApplicationM as App, MainC, LedsC, LocalTimeMilliC;
 
-	components new StreamStorageClientC();
+	components new StreamStorageClientC(), StreamStorageCommonC;
 	App.StreamStorageWrite->StorageFrameWriteC;
 	App.StreamStorageErase->StreamStorageClientC;
 	App.Boot -> MainC.Boot;
 	App.Leds->LedsC;
 	App.StdControl -> StreamUploaderC;
+	App.SplitControl -> StreamStorageCommonC;
 	App.Command -> StreamUploaderC;
 	App.LocalTime->LocalTimeMilliC;
 	App.SensorTimer -> SensorTimer;

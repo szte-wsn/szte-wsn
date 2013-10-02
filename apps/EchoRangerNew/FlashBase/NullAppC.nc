@@ -5,6 +5,8 @@ implementation {
 	
 	components StreamDownloaderC;
 	NullC.SplitControl -> StreamDownloaderC;
+	components StreamStorageCommonC;
+	NullC.StorageControl -> StreamStorageCommonC;
 	
 	components new StorageFrameReadC();
 	StorageFrameReadC.StreamStorageRead -> StreamDownloaderC;

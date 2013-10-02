@@ -46,6 +46,7 @@
 module ApplicationM{
 	uses {
 		interface StdControl;
+		interface SplitControl;
 		interface StreamStorageWrite;
 		interface StreamStorageErase;
 		interface Boot;
@@ -72,11 +73,14 @@ implementation{
 		if(TOS_NODE_ID==9999){
 			call SensorTimer.startOneShot(2000);
 		}else{
-			uint32_t period=(uint32_t)SAMP_T*1024*60;
-			call StdControl.start();
-			call SensorTimer.startPeriodicAt(call SensorTimer.getNow()-period+(uint32_t)WAIT_AFTER_START*1024,period);
+			call SplitControl.start();
 		}
-		//call SensorTimer.startPeriodic(1000);	
+	}
+	
+	event void SplitControl.startDone(error_t err){
+		uint32_t period=(uint32_t)SAMP_T*1024*60;
+		call StdControl.start();
+		call SensorTimer.startPeriodicAt(call SensorTimer.getNow()-period+(uint32_t)WAIT_AFTER_START*1024,period);
 	}
 	
 	event void SensorTimer.fired(){
@@ -154,6 +158,7 @@ implementation{
 		}
 	}
 	
+	event void SplitControl.stopDone(error_t err){}
 	event void StreamStorageWrite.appendDone(void* buf, uint16_t  len, error_t error){}
 	event void StreamStorageWrite.syncDone(error_t error){}
 }
