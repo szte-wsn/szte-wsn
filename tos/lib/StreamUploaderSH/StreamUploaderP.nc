@@ -64,14 +64,28 @@ implementation{
 	
 	task void SCStop(){
 		error_t err=call SplitControl.stop();
-		if(err!=SUCCESS&&err!=EALREADY){
+		if(err == EALREADY){
+			call Leds.led0Off();
+			status=WAIT_FOR_BS;
+			if(bs_lost==NO_BS){//if BS_OK, than it doesn't want any data, so we can sleep longer
+				call WaitTimer.startOneShot((uint32_t)RADIO_LONG*1000);
+			}else{
+				call WaitTimer.startOneShot(RADIO_MIDDLE);
+			}
+		} else if(err!=SUCCESS){
 			post SCStop();
 		}
 	}
 	
 	task void SCStart(){
 		error_t err=call SplitControl.start();
-		if(err!=SUCCESS&&err!=EALREADY){
+		if(err == EALREADY){
+			ctrl_msg* msg=call Packet.getPayload(&message, sizeof(ctrl_msg));
+			call Leds.led0On();
+			if(call TimeSyncAMSendMilli.send(BS_ADDR, &message, sizeof(ctrl_msg),msg->localtime)!=SUCCESS){
+				post SCStop();
+			}
+		}else if(err!=SUCCESS){
 			post SCStart();
 		}
 	}
