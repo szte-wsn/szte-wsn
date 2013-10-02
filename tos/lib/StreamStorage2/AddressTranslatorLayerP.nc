@@ -185,7 +185,7 @@ implementation{
 								memcpy((void*)(buffer + offset), writeBuffer, length - offset);
 								offset = length;
 							} else 
-								call PageMeta.readPage((pageNum + 1) % (call PageMeta.getNumPages() - 1));
+								call PageMeta.readPage((pageNum + 1) % (call PageMeta.getNumPages()));
 						}
 					} else { //something is totally wrong: eighter we thought that we found the first page, but we didn't, or the addressing is not strictly increasing
 						//TODO this is a serious error, give some better error, at least in diag
@@ -201,7 +201,7 @@ implementation{
 						memcpy((void*)(buffer + offset), writeBuffer, length - offset);
 						offset = length;
 					} else 
-						call PageMeta.readPage((pageNum + 1) % (call PageMeta.getNumPages() - 1));
+						call PageMeta.readPage((pageNum + 1) % (call PageMeta.getNumPages()));
 				} else { //last page
 					memcpy((void*)(buffer + offset), readBuffer, length - offset);
 					offset = length;
