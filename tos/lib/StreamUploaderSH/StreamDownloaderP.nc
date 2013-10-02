@@ -153,12 +153,13 @@ implementation{
 				}
 			}
 			if( startAddress == endAddress || endAddress < control->min_address ){
-				req->min_address = control->min_address;
+					startAddress = endAddress = req->min_address;
+					req->min_address = control->min_address;
 			} else {
 				req->min_address = endAddress + 1;
 			}
 			if( req->min_address + MESSAGE_SIZE - 1 > control->max_address ){
-				req->min_address = control->max_address - MESSAGE_SIZE + 1;
+				req->min_address = control->max_address - MESSAGE_SIZE + 1;       
 			}
 			req->max_address = req->min_address + MESSAGE_SIZE - 1;
 			if( call DiagMsg.record() ){
