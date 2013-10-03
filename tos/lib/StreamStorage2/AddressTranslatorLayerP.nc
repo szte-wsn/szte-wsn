@@ -77,7 +77,7 @@ implementation{
 				pages = (int64_t)searchMax.page - searchMin.page;
 			else
 				pages = (int64_t)searchMax.page +  (call PageMeta.getNumPages() - searchMin.page);
-			readPage = (uint32_t)(searchMin.page + (( pages * (readAddress - searchMin.address)) / (searchMax.address - searchMin.address)));
+			readPage = (uint32_t)(searchMin.page + (( pages * (readAddress - searchMin.address)) / (searchMax.address - searchMin.address))) % (call PageMeta.getNumPages());
 			
 			if(call DiagMsg.record()){
 				call DiagMsg.str("TR it");
