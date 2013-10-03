@@ -152,6 +152,8 @@ implementation{
 					timestamps[3] = control -> localtime;
 				}
 			}
+			if( endAddress == control->max_address ) //nothing to download
+				return msg;
 			if( startAddress == endAddress || endAddress < control->min_address ){
 					startAddress = endAddress = req->min_address;
 					req->min_address = control->min_address;
